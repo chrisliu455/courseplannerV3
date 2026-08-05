@@ -276,11 +276,3 @@ details.course-detail[open] summary::before { content: '▾ '; }
   font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-soft);
 }
 
-.persist-toggle {
-  display: flex; align-items: center; gap: 5px; margin: 0;
-  padding: 5px 9px; border: 1px solid var(--hairline); border-radius: 2px;
-  font-size: 11.5px; color: var(--ink-soft); letter-spacing: normal;
-  text-transform: none; cursor: pointer; white-space: nowrap; background: #fff;
-}
-.persist-toggle:hover { border-color: var(--navy); color: var(--navy); }
-.persist-toggle input { width: auto; margin: 0; accent-color: var(--maroon); }

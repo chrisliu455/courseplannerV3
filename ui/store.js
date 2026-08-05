@@ -7,36 +7,36 @@
  * plan.majorId ＋ plan.identityIds ＋ plan.customIdentities 決定要合併哪些身分模組，
  * store.ruleset 就是合併後的結果，畢業學分要求由這些身分相加而來。
  *
- * ── 自動保存 ────────────────────────────────
- * 預設關閉：每次開啟網站都是空白的，關掉分頁資料就不見。
- * 畫面右上角有「自動保存」開關可以隨時打開，不用改程式碼。
- * 開關本身的狀態會記住；關閉時會把存的規劃一併刪除。
+ * ── 不保存任何資料 ──────────────────────────
+ * 每次開啟網站都是空白的，關掉分頁資料就不見，畫面上也沒有開關可以打開。
+ * 這是刻意的：共用電腦時，下一個人打開網站不會看到前一個人排的課。
+ * 要保留規劃請用「匯出規劃」下載 JSON，下次「匯入規劃」讀回來。
+ *
+ * 開站時會主動清掉 localStorage 裡所有相關的鍵，包含舊版留下的，
+ * 所以先前曾經開啟過自動保存的瀏覽器也會被一併清乾淨。
+ *
+ * 真要改回自動保存，把下面的 PERSIST 改成 true——但共用裝置上請不要這樣做。
  */
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
 import { mergeModules, customModule } from '../engine/index.js';
 
+const PERSIST = false; // 不保存。共用裝置上請維持 false
+
 const STORAGE_KEY = 'credit-planner/plan/v2';
-const LEGACY_KEYS = ['credit-planner/plan/v1'];
 const PERSIST_KEY = 'credit-planner/persist';
+const LEGACY_KEYS = ['credit-planner/plan/v1', PERSIST_KEY];
+
 const PLAN_VERSION = 2;
 
-/** 預設不保存。使用者可以在畫面上打開。 */
-let persist = readPersistFlag();
+const persist = PERSIST;
 
-function readPersistFlag() {
-  try {
-    return localStorage.getItem(PERSIST_KEY) === 'on';
-  } catch {
-    return false; // 無痕模式讀不到 localStorage，一律當作不保存
-  }
-}
-
+/** 清掉這個網站在 localStorage 裡的所有痕跡，包含舊版與舊的開關設定 */
 function clearStored() {
   try {
     [STORAGE_KEY, ...LEGACY_KEYS].forEach((k) => localStorage.removeItem(k));
   } catch {
-    /* 讀不到就算了 */
+    /* 無痕模式讀不到 localStorage，忽略 */
   }
 }
 
@@ -139,20 +139,8 @@ export const store = {
   get modules() {
     return activeModules();
   },
-  /* 自動保存開關 */
   get persistEnabled() {
     return persist;
-  },
-  setPersist(on) {
-    persist = Boolean(on);
-    try {
-      localStorage.setItem(PERSIST_KEY, persist ? 'on' : 'off');
-    } catch {
-      /* 無痕模式：這次切換有效，下次開站會回到預設 */
-    }
-    if (persist) save();
-    else clearStored();
-    commit();
   },
 
   subscribe(fn) {

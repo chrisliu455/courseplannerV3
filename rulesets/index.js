@@ -1,12 +1,18 @@
 /**
  * rulesets/index.js — 身分模組註冊表
  *
- * 新增主修系所：建一份 major.xxx.js，import 進來加到 MAJORS
- * 新增輔系／雙主修／學分學程：建一份 minor.xxx.js 之類，加到 IDENTITIES
+ * ── 新增科系就是改這個檔案 ──────────────────────
+ * 主修：           複製 _TEMPLATE.major.js → major.你的系.js → 加到 MAJORS
+ * 輔系／雙主修／學分學程：複製 _TEMPLATE.minor.js → minor.你的系.js → 加到 IDENTITIES
  *
- * 勾選清單會自動出現，引擎和 UI 都不用改。
+ * 兩個範本裡有完整註解，照著填就好。
+ * 加完存檔重整，清單會自動出現，引擎和 UI 一行都不用改。
+ *
+ * 數字算錯（各大類加總 ≠ 畢業總學分、標籤沒歸屬、id 撞名⋯⋯）時，
+ * 判定結果最上方會直接列出問題，不會默默算錯。
  */
 
+// 新增科系時，在這裡多一行 import
 import majorDongji114 from './major.dongji-114.js';
 import majorDongji113 from './major.dongji-113.js';
 import minorQf from './minor.qf.js';

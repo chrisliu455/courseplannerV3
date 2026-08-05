@@ -149,5 +149,31 @@ export function validateRuleset(ruleset) {
     })
   );
 
+  // 新增科系時最容易算錯的地方：各大類加起來要等於畢業總學分
+  if (ruleset.totalCredits != null) {
+    const sum = ruleset.categories
+      .filter((cat) => cat.countsTowardTotal !== false)
+      .reduce((s, cat) => {
+        if (cat.minCredits != null) return s + Number(cat.minCredits);
+        return s + (cat.buckets || []).reduce((x, b) => x + (Number(b.minCredits) || 0), 0);
+      }, 0);
+    if (sum !== Number(ruleset.totalCredits)) {
+      push(
+        'warn',
+        `各大類應修學分加總為 ${sum}，與畢業總學分 ${ruleset.totalCredits} 不符。` +
+          `修滿每一類仍可能達不到（或超過）畢業門檻，請檢查數字。`
+      );
+    }
+  }
+
+  // 大類自己的 minCredits 也要跟底下項目對得起來
+  ruleset.categories.forEach((cat) => {
+    if (cat.minCredits == null) return;
+    const inner = (cat.buckets || []).reduce((s, b) => s + (Number(b.minCredits) || 0), 0);
+    if (inner > Number(cat.minCredits)) {
+      push('warn', `「${cat.label}」底下各項目加總 ${inner}，超過該大類的應修學分 ${cat.minCredits}`);
+    }
+  });
+
   return issues;
 }

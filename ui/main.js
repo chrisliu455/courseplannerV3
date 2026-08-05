@@ -7,7 +7,7 @@
  */
 
 /** 版本標記：畫面右下角會顯示，用來確認瀏覽器跑的是不是最新檔案 */
-export const BUILD = 'v6';
+export const BUILD = 'v7';
 
 import { evaluate } from '../engine/index.js';
 import { store } from './store.js';
@@ -27,6 +27,16 @@ function renderAll() {
   renderReport(report);
 }
 
+/* 元素可能不存在（例如 index.html 沒跟著更新），一律走這兩個 setter */
+const setText = (sel, value) => {
+  const el = $(sel);
+  if (el) el.textContent = value;
+};
+const setHTML = (sel, value) => {
+  const el = $(sel);
+  if (el) el.innerHTML = value;
+};
+
 function renderHeader(report) {
   const { plan, ruleset } = store;
   const t = report.credit.total;
@@ -40,19 +50,22 @@ function renderHeader(report) {
     const ch = opt.choices.find((c) => c.value === v);
     if (ch) parts.push(ch.label);
   });
-  $('#majorSub').textContent = parts.join('　｜　');
+  setText('#majorSub', parts.join('　｜　'));
 
-  $('#persistToggle').checked = store.persistEnabled;
-  $('#persistNote').innerHTML = store.persistEnabled
-    ? '規劃會自動存在這台裝置的瀏覽器裡，重新整理不會消失。'
-    : '<strong>這個頁面不會保存資料</strong>，關掉或重新整理就會清空。';
-  $('#ledgerTotal').textContent = num(t.target);
-  $('#ledgerPlanned').textContent = num(t.earned);
-  $('#ledgerRemain').textContent = num(t.remaining);
+  setHTML(
+    '#persistNote',
+    store.persistEnabled
+      ? '規劃會自動存在這台裝置的瀏覽器裡，重新整理不會消失。'
+      : '<strong>這個頁面不會保存資料</strong>，關掉或重新整理就會清空。'
+  );
+  setText('#ledgerTotal', num(t.target));
+  setText('#ledgerPlanned', num(t.earned));
+  setText('#ledgerRemain', num(t.remaining));
 
   const pct = t.target > 0 ? Math.min(1, t.earned / t.target) : 0;
-  $('#sealPct').textContent = Math.round(pct * 100) + '%';
-  $('#sealRing').style.strokeDashoffset = String(201 - 201 * pct);
+  setText('#sealPct', Math.round(pct * 100) + '%');
+  const ring = $('#sealRing');
+  if (ring) ring.style.strokeDashoffset = String(201 - 201 * pct);
 }
 
 /* ── 檔案 ─────────────────────────────────── */
@@ -84,33 +97,59 @@ store.subscribe(renderAll);
 document.addEventListener('report:refresh', renderAll);
 document.addEventListener('chip:selected', renderGrid);
 
-$('#exportBtn').addEventListener('click', exportPlan);
-$('#importBtn').addEventListener('click', () => $('#importFile').click());
-$('#importFile').addEventListener('change', (e) => {
+/**
+ * 綁事件用這個，不要直接 $(...).addEventListener。
+ * 少一個元素只會少一個功能，不會讓整頁掛掉——
+ * 常見於 index.html 忘了跟著更新的時候。
+ */
+const missing = [];
+function on(selector, event, handler) {
+  const el = $(selector);
+  if (!el) return missing.push(selector);
+  el.addEventListener(event, handler);
+}
+
+on('#exportBtn', 'click', exportPlan);
+on('#importBtn', 'click', () => $('#importFile')?.click());
+on('#importFile', 'change', (e) => {
   if (e.target.files[0]) importPlan(e.target.files[0]);
   e.target.value = '';
 });
-$('#persistToggle').addEventListener('change', (e) => {
-  store.setPersist(e.target.checked);
-  toast(e.target.checked ? '已開啟自動保存' : '已關閉自動保存，並清除已存的規劃');
-});
-$('#tagEditorBtn').addEventListener('click', openTagEditor);
-$('#resetBtn').addEventListener('click', () => {
+on('#tagEditorBtn', 'click', openTagEditor);
+on('#resetBtn', 'click', () => {
   if (confirm('會清空所有課程與設定，且無法復原。建議先匯出備份。確定清空？')) {
     store.reset();
     toast('已清空');
   }
 });
 
-/* 沒開自動保存又排了課，關掉分頁前提醒一下 */
+/* 檔案版本對不上時講清楚，不要讓使用者對著壞掉的畫面猜 */
+const pageBuild = document.documentElement.dataset.build || '(舊版，沒有版本標記)';
+if (pageBuild !== BUILD || missing.length) {
+  const detail =
+    pageBuild !== BUILD
+      ? `index.html 是 <b>${pageBuild}</b>，ui/main.js 是 <b>${BUILD}</b>。`
+      : `index.html 缺少這些元素：<b>${missing.join('、')}</b>。`;
+  document.body.insertAdjacentHTML(
+    'afterbegin',
+    `<div style="font:13px/1.7 system-ui;background:#FBF0E4;border:2px solid #B08D3F;
+      padding:14px 18px;margin:14px;border-radius:3px;color:#1E2A38">
+      <strong style="font-size:14px">檔案版本不一致</strong><br>
+      ${detail}請把整包檔案一起重新上傳（尤其是 <code>index.html</code> 和 <code>assets/app.css</code>），
+      然後按 Ctrl+Shift+R 強制重新整理。部分功能在修好之前無法使用。
+    </div>`
+  );
+  console.warn('[學程規劃表] 版本不一致：index.html=' + pageBuild + '、main.js=' + BUILD, missing);
+}
+
+/* 資料不會保存，排了課要關掉分頁前提醒一下 */
 window.addEventListener('beforeunload', (e) => {
   if (store.persistEnabled || !store.plan.courses.length) return;
   e.preventDefault();
   e.returnValue = '';
 });
 
-const stamp = document.getElementById('buildStamp');
-if (stamp) stamp.textContent = BUILD;
+setText('#buildStamp', BUILD);
 console.log('[學程規劃表] 版本 ' + BUILD + '｜自動保存：' + (store.persistEnabled ? '開啟' : '關閉'));
 
 renderAll();
