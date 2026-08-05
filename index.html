@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>學程規劃表 · 四年課表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/app.css">
+</head>
+<body>
+
+<!--
+  這份 HTML 只有骨架，沒有任何邏輯。
+  外觀 → assets/app.css　互動 → ui/　判定規則 → engine/ ＋ rulesets/
+-->
+
+<header class="topbar">
+  <div class="seal">
+    <svg width="72" height="72" viewBox="0 0 76 76" aria-hidden="true">
+      <circle cx="38" cy="38" r="32" fill="none" stroke="#CBC2A9" stroke-width="6"/>
+      <circle id="sealRing" cx="38" cy="38" r="32" fill="none" stroke="#7A2E2E" stroke-width="6"
+              stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="201"/>
+    </svg>
+    <div class="center">
+      <div class="pct mono" id="sealPct">0%</div>
+      <div class="pct-label">已認列</div>
+    </div>
+  </div>
+
+  <div class="title-block">
+    <h1>學程規劃表</h1>
+    <div class="sub" id="majorSub"></div>
+  </div>
+
+  <div class="ledger">
+    <div class="cell"><div class="num mono" id="ledgerTotal">0</div><div class="lab">應修學分</div></div>
+    <div class="cell ok"><div class="num mono" id="ledgerPlanned">0</div><div class="lab">已認列</div></div>
+    <div class="cell warn"><div class="num mono" id="ledgerRemain">0</div><div class="lab">尚需</div></div>
+  </div>
+
+  <div class="file-actions">
+    <button class="btn-ghost btn-small" id="exportBtn" type="button">匯出規劃</button>
+    <button class="btn-ghost btn-small" id="importBtn" type="button">匯入規劃</button>
+    <button class="btn-ghost btn-small" id="resetBtn" type="button">清空</button>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="section-label"><span class="n">1</span>修業設定</div>
+    <div class="card-box" id="setupBox"></div>
+
+    <div class="section-label"><span class="n">2</span>規定科目匯入</div>
+    <div class="card-box" id="importBox"></div>
+
+    <div class="section-label"><span class="n">3</span>新增課程</div>
+    <div class="card-box" id="addCourseBox"></div>
+
+    <div class="section-label">
+      <span class="n">4</span>待排課程
+      <span class="spacer"></span>
+      <span class="footnote mono" id="poolCount" style="margin:0"></span>
+    </div>
+    <input type="text" class="search-box" id="searchCourse" placeholder="搜尋課程名稱…">
+    <div class="pool-dropzone" id="poolZone">
+      <div id="poolContainer"></div>
+    </div>
+    <p class="footnote">拖曳課程到右側學期，或先點卡片再點學期格子。拖回這裡可取消排課。</p>
+  </aside>
+
+  <main class="main">
+    <div class="section-label"><span class="n">5</span>四年課表</div>
+    <div class="grid4" id="semesterGrid"></div>
+
+    <div class="section-label" style="margin-top:22px">
+      <span class="n">6</span>判定結果
+      <span class="spacer"></span>
+      <button class="btn-ghost btn-small" id="tagEditorBtn" type="button">標籤設定</button>
+    </div>
+    <div class="tabs" id="reportTabs" role="tablist"></div>
+    <div id="reportBody"></div>
+    <p class="footnote" style="margin-top:18px">
+      判定結果僅供規劃參考，實際畢業資格以系辦與教務處公告為準。資料只存在你自己的瀏覽器，換裝置請用「匯出規劃」帶走。
+    </p>
+  </main>
+</div>
+
+<script type="module" src="./ui/main.js"></script>
+
+<!-- 自我診斷：程式沒跑起來時，直接說明原因，而不是留一個空骨架給使用者 -->
+<script>
+window.addEventListener('load', function () {
+  setTimeout(function () {
+    if (document.querySelectorAll('.sem-body').length > 0) return; // 有跑起來就不管
+
+    var cssOK = getComputedStyle(document.body).backgroundColor === 'rgb(239, 235, 225)';
+    var isFile = location.protocol === 'file:';
+    var reasons = [];
+
+    if (isFile) {
+      reasons.push('<b>你是直接雙擊開啟檔案的。</b>瀏覽器的安全限制不允許 <code>file://</code> 載入 ES modules。' +
+        '請在專案資料夾執行 <code>python3 -m http.server 8080</code>，然後開 <code>http://localhost:8080</code>。');
+    }
+    if (!cssOK) {
+      reasons.push('<b>找不到 assets/app.css。</b>index.html 旁邊必須有 assets/、ui/、engine/、rulesets/ 這四個資料夾，' +
+        '整包一起放才會動。只複製 index.html 是不夠的。');
+    }
+    if (!reasons.length) {
+      reasons.push('請按 F12 打開開發者工具，看 Console 分頁的紅色錯誤訊息。');
+    }
+
+    document.body.insertAdjacentHTML('afterbegin',
+      '<div style="font:14px/1.7 system-ui;background:#F7E9E7;border:2px solid #A5342C;' +
+      'padding:16px 20px;margin:16px;border-radius:3px;color:#1E2A38">' +
+      '<strong style="font-size:15px">頁面沒有正常啟動</strong><ul style="margin:8px 0 0;padding-left:20px">' +
+      reasons.map(function (r) { return '<li style="margin-bottom:6px">' + r + '</li>'; }).join('') +
+      '</ul></div>');
+  }, 400);
+});
+</script>
+</body>
+</html>

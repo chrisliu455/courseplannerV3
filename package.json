@@ -1,0 +1,11 @@
+{
+  "name": "credit-planner",
+  "version": "1.0.0",
+  "description": "學程規劃表 — UI 與判定引擎分離的靜態網站",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "dev": "python3 -m http.server 8080"
+  }
+}
