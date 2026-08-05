@@ -61,3 +61,4 @@ export function tagTable(plan, baseRuleset) {
 
 export { applyTagEdits, buildIndex, validateRuleset } from './ruleset.js';
 export { normalizeName, isCounted, isActive } from './ruleset.js';
+export { mergeModules, customModule, typeLabel } from './merge.js';

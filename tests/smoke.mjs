@@ -38,11 +38,21 @@ const check = (label, cond, extra = '') => {
 };
 
 console.log('\n【啟動】');
-check('側欄設定區有渲染', $('#rulesetSelect') !== null);
+check('側欄設定區有渲染', $('#majorSelect') !== null);
 check('匯入清單有內容', $('#importList').children.length > 0, `${$('#importList').children.length} 列`);
 check('八個學期格子都在', window.document.querySelectorAll('.sem-body').length === 8);
-check('應修學分顯示 129', text('#ledgerTotal') === '129', text('#ledgerTotal'));
+check('主修動機系 → 應修 129', text('#ledgerTotal') === '129', text('#ledgerTotal'));
 check('判定分頁有兩個', $('#reportTabs').children.length === 2);
+
+console.log('\n【加入輔系身分】');
+store.addIdentity('minor.qf');
+check('應修學分變成 149', text('#ledgerTotal') === '149', text('#ledgerTotal'));
+check('身分清單出現輔系', window.document.querySelectorAll('.identity-item').length === 1);
+check('標題列同時顯示兩個身分',
+  $('#majorSub').textContent.includes('動機') && $('#majorSub').textContent.includes('計量財務'),
+  $('#majorSub').textContent);
+check('學分明細有三列（主修/輔系/合計）', window.document.querySelectorAll('.credit-sum .cs-row').length === 3);
+check('匯入清單多了輔系指定科目', $('#importList').textContent.includes('衍生性金融市場'));
 
 console.log('\n【匯入規定科目】');
 $('#importToggleAll').click();
@@ -89,7 +99,7 @@ console.log('\n【標籤設定視窗】');
 const { openTagEditor } = await load('ui/views/tags.js');
 openTagEditor();
 check('視窗開啟', $('.overlay') !== null);
-check('列出 10 個標籤', window.document.querySelectorAll('.tag-table tbody tr').length === 10,
+check('列出 9 個標籤（主修 8 ＋ 輔系 1）', window.document.querySelectorAll('.tag-table tbody tr').length === 9,
   String(window.document.querySelectorAll('.tag-table tbody tr').length));
 $('#tagClose').click();
 check('視窗關閉', $('.overlay') === null);
@@ -104,6 +114,18 @@ check('匯入後課程回來了', store.plan.courses.length === count, `${count}
 const scheduled = store.plan.courses.filter((c) => c.semester).length;
 check('匯入後畫面與資料一致', window.document.querySelectorAll('.sem-body .chip').length === scheduled,
   `畫面 ${window.document.querySelectorAll('.sem-body .chip').length} / 資料 ${scheduled}`);
+
+console.log('\n【移除身分 → 學分要求跟著降】');
+const qfCourses = store.identityCourseCount('minor.qf');
+store.removeIdentity('minor.qf');
+check('應修學分回到 129', text('#ledgerTotal') === '129', text('#ledgerTotal'));
+check('原輔系課程變成未設標籤（課沒被刪）',
+  store.plan.courses.filter((c) => c.tag === null).length >= qfCourses);
+
+console.log('\n【自訂身分】');
+store.addCustomIdentity({ type: 'program', label: '人工智慧學程', credits: 12 });
+check('應修學分變成 141', text('#ledgerTotal') === '141', text('#ledgerTotal'));
+check('自訂身分出現在清單', $('#setupBox').textContent.includes('人工智慧學程'));
 
 console.log('\n【溢出規則實際跑一次】');
 store.reset();

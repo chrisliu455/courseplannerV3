@@ -3,18 +3,24 @@
  *
  * 這一層管狀態，不管長相。任何改動都走這裡的方法，
  * 改完自動存 localStorage 並通知所有訂閱者重畫。
+ *
+ * plan.majorId ＋ plan.identityIds ＋ plan.customIdentities 決定要合併哪些身分模組，
+ * store.ruleset 就是合併後的結果，畢業學分要求由這些身分相加而來。
  */
 
-import { DEFAULT_RULESET_ID, getRuleset } from '../rulesets/index.js';
+import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
+import { mergeModules, customModule } from '../engine/index.js';
 
-const STORAGE_KEY = 'credit-planner/plan/v1';
-const PLAN_VERSION = 1;
+const STORAGE_KEY = 'credit-planner/plan/v2';
+const PLAN_VERSION = 2;
 
 function emptyPlan() {
   return {
     version: PLAN_VERSION,
-    rulesetId: DEFAULT_RULESET_ID,
-    meta: { studentName: '', note: '' },
+    majorId: DEFAULT_MAJOR_ID,
+    identityIds: [],        // 內建身分模組，例：['minor.qf']
+    customIdentities: [],   // 自訂身分：{ id, type, label, credits }
+    meta: { studentName: '' },
     options: {},
     courses: [],
     tagEdits: { tags: {}, moves: {}, custom: [] },
@@ -28,7 +34,7 @@ const listeners = new Set();
 /* ── 讀寫 ────────────────────────────────── */
 function load() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('credit-planner/plan/v1');
     if (!raw) return emptyPlan();
     return migrate(JSON.parse(raw));
   } catch {
@@ -36,17 +42,33 @@ function load() {
   }
 }
 
+/** 舊版規劃檔（v1 用 rulesetId ＋ options.minor）自動轉成 v2 的身分模組 */
 function migrate(data) {
   const base = emptyPlan();
-  return {
+  const out = {
     ...base,
     ...data,
     version: PLAN_VERSION,
     meta: { ...base.meta, ...(data.meta || {}) },
     options: { ...(data.options || {}) },
+    identityIds: [...(data.identityIds || [])],
+    customIdentities: [...(data.customIdentities || [])],
     courses: (data.courses || []).map((c) => ({ ...c, credit: Number(c.credit) || 0 })),
     tagEdits: { ...base.tagEdits, ...(data.tagEdits || {}) },
   };
+
+  if (data.rulesetId && !data.majorId) {
+    out.majorId = data.rulesetId === 'dongji-113' ? 'major.dongji-113' : data.rulesetId;
+  }
+  if (out.options.minor === 'qf' && !out.identityIds.includes('minor.qf')) {
+    out.identityIds.push('minor.qf');
+    out.courses.forEach((c) => {
+      if (c.tag === 'tag.minor') c.tag = 'tag.minor-qf';
+    });
+  }
+  delete out.options.minor;
+  delete out.rulesetId;
+  return out;
 }
 
 function save() {
@@ -62,26 +84,70 @@ function commit() {
   listeners.forEach((fn) => fn(plan));
 }
 
+/** 目前生效的身分模組（主修排第一） */
+function activeModules() {
+  const mods = [getModule(plan.majorId)].filter(Boolean);
+  plan.identityIds.forEach((id) => {
+    const m = getModule(id);
+    if (m) mods.push(m);
+  });
+  plan.customIdentities.forEach((ci) => mods.push(customModule(ci)));
+  return mods;
+}
+
 /* ── 對外 ────────────────────────────────── */
 export const store = {
   get plan() {
     return plan;
   },
+  /** 合併所有身分模組後的規則集，引擎吃這個 */
   get ruleset() {
-    return getRuleset(plan.rulesetId);
+    return mergeModules(activeModules());
+  },
+  get modules() {
+    return activeModules();
   },
   subscribe(fn) {
     listeners.add(fn);
     return () => listeners.delete(fn);
   },
 
-  /* 修業設定 */
-  setRuleset(id) {
-    if (id === plan.rulesetId) return;
-    plan.rulesetId = id;
+  /* 身分別 */
+  setMajor(id) {
+    if (id === plan.majorId) return;
+    plan.majorId = id;
     plan.options = {};
     commit();
   },
+  addIdentity(id) {
+    if (plan.identityIds.includes(id)) return false;
+    plan.identityIds.push(id);
+    commit();
+    return true;
+  },
+  addCustomIdentity({ type, label, credits }) {
+    const id = 'custom.' + Date.now().toString(36);
+    plan.customIdentities.push({ id, type, label, credits: Number(credits) || 0 });
+    commit();
+    return id;
+  },
+  /** 移除身分：回傳會被連帶清掉標籤的課程數，讓 UI 先問過使用者 */
+  identityCourseCount(id) {
+    const mod = getModule(id) || customModule(plan.customIdentities.find((c) => c.id === id) || {});
+    const tagIds = (mod.tags || []).map((t) => t.id);
+    return plan.courses.filter((c) => tagIds.includes(c.tag)).length;
+  },
+  removeIdentity(id) {
+    const mod = getModule(id) || customModule(plan.customIdentities.find((c) => c.id === id) || {});
+    const tagIds = (mod.tags || []).map((t) => t.id);
+    plan.courses.forEach((c) => {
+      if (tagIds.includes(c.tag)) c.tag = null;
+    });
+    plan.identityIds = plan.identityIds.filter((x) => x !== id);
+    plan.customIdentities = plan.customIdentities.filter((x) => x.id !== id);
+    commit();
+  },
+
   setOption(key, value) {
     plan.options[key] = value;
     commit();

@@ -1,8 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { evaluate, tagTable, validateRuleset } from '../engine/index.js';
-import ruleset from '../rulesets/dongji-113.js';
+import { evaluate, tagTable, validateRuleset, mergeModules } from '../engine/index.js';
+import major from '../rulesets/major.dongji-113.js';
+import minorQf from '../rulesets/minor.qf.js';
+
+/** 只有主修的規則集（129 學分） */
+const ruleset = mergeModules([major]);
+/** 主修 ＋ 輔系計財（129 ＋ 20 ＝ 149 學分） */
+const withMinor = mergeModules([major, minorQf]);
 
 let seq = 0;
 const course = (name, credit, tag, semester = 'y1s1') => ({
@@ -20,9 +26,9 @@ test('規則集本身沒有結構錯誤', () => {
   assert.deepEqual(issues.filter((i) => i.level === 'error'), []);
 });
 
-test('10 個標籤全部有對應到項目與大類', () => {
+test('主修的 8 個標籤全部有對應到項目與大類', () => {
   const table = tagTable(plan([]), ruleset);
-  assert.equal(table.length, 10);
+  assert.equal(table.length, 8);
   table.forEach((t) => {
     assert.ok(t.bucketId, `${t.label} 沒有對應項目`);
     assert.ok(t.categoryId, `${t.label} 沒有對應大類`);
@@ -93,19 +99,65 @@ test('核心通識未滿 4 門時通識項目不算達標', () => {
   assert.equal(ge.checks[0].need, 4);
 });
 
-test('其他身分不計入畢業總學分', () => {
-  const r = evaluate(
-    plan([course('經濟學原理一', 3, 'tag.minor')], { minor: 'qf' }),
-    ruleset
-  );
-  assert.equal(r.credit.total.earned, 0, '輔系學分不應計入 129');
-  assert.equal(findBucket(r, 'bkt.minor').earned, 3);
+test('身分別決定畢業學分：主修 129', () => {
+  assert.equal(ruleset.totalCredits, 129);
+  const r = evaluate(plan([]), ruleset);
+  assert.equal(r.credit.total.target, 129);
 });
 
-test('沒選輔系時，輔系項目關閉且該標籤的課被標為未啟用', () => {
-  const r = evaluate(plan([course('經濟學原理一', 3, 'tag.minor')], {}), ruleset);
-  assert.equal(findBucket(r, 'bkt.minor').active, false);
-  assert.equal(r.credit.exceptions.inactive.length, 1);
+test('身分別決定畢業學分：主修 129 ＋ 輔系 20 ＝ 149', () => {
+  assert.equal(withMinor.totalCredits, 149);
+  const r = evaluate(plan([]), withMinor);
+  assert.equal(r.credit.total.target, 149);
+});
+
+test('加了輔系才有輔系標籤與項目', () => {
+  assert.equal(tagTable(plan([]), ruleset).length, 8);
+  assert.equal(tagTable(plan([]), withMinor).length, 9);
+  assert.ok(!ruleset.categories.some((c) => c.id === 'cat.identity'));
+  assert.ok(withMinor.categories.some((c) => c.id === 'cat.identity'));
+});
+
+test('輔系學分計入畢業總學分（加修制）', () => {
+  const r = evaluate(plan([course('經濟學原理一', 3, 'tag.minor-qf')]), withMinor);
+  assert.equal(findBucket(r, 'bkt.minor-qf').earned, 3);
+  assert.equal(r.credit.total.earned, 3, '輔系學分要計入總數');
+  assert.equal(r.credit.total.remaining, 146);
+});
+
+test('輔系指定科目要全部修畢', () => {
+  const names = minorQf.subjectGroups[0].items.map((i) => i.name);
+  const partial = evaluate(plan(names.slice(0, 3).map((n) => course(n, 3, 'tag.minor-qf'))), withMinor);
+  const g1 = partial.subject.groups.find((g) => g.id === 'grp.minor.qf');
+  assert.equal(g1.satisfied, false);
+  assert.equal(g1.have, 3);
+  assert.equal(g1.need, 7);
+
+  const full = evaluate(plan(names.map((n) => course(n, 3, 'tag.minor-qf'))), withMinor);
+  const g2 = full.subject.groups.find((g) => g.id === 'grp.minor.qf');
+  assert.equal(g2.satisfied, true);
+  assert.equal(findBucket(full, 'bkt.minor-qf').earned, 21);
+  assert.equal(findBucket(full, 'bkt.minor-qf').met, true, '21 >= 20 應達標');
+});
+
+test('沒加輔系時，輔系標籤的課會被標為失效', () => {
+  const r = evaluate(plan([course('經濟學原理一', 3, 'tag.minor-qf')]), ruleset);
+  assert.equal(r.credit.exceptions.unmapped.length, 1);
+  assert.equal(r.credit.total.earned, 0);
+});
+
+test('自訂身分：學分要求疊加，並長出自己的標籤與項目', async () => {
+  const { customModule } = await import('../engine/index.js');
+  const custom = customModule({ id: 'custom.ai', type: 'program', label: '人工智慧學程', credits: 12 });
+  const merged = mergeModules([major, minorQf, custom]);
+  assert.equal(merged.totalCredits, 161, '129 + 20 + 12');
+
+  const identity = merged.categories.find((c) => c.id === 'cat.identity');
+  assert.equal(identity.buckets.length, 2, '輔系與學分學程共用「其他身分」大類');
+  assert.equal(identity.minCredits, 32, '20 + 12');
+
+  const r = evaluate(plan([course('機器學習', 3, 'tag.custom.ai')]), merged);
+  assert.equal(findBucket(r, 'bkt.custom.ai').earned, 3);
 });
 
 test('沒有標籤的課會被單獨列出來提醒', () => {

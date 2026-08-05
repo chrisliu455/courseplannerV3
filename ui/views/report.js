@@ -170,10 +170,12 @@ function exceptionsHTML(ex) {
     );
   if (ex.inactive.length)
     blocks.push(
-      `<b>${ex.inactive.length} 門課的標籤對應到未啟用的項目</b>（例如還沒選輔系）：${list(ex.inactive)}`
+      `<b>${ex.inactive.length} 門課的標籤對應到未啟用的項目</b>：${list(ex.inactive)}`
     );
   if (ex.unmapped.length)
-    blocks.push(`<b>${ex.unmapped.length} 門課的標籤沒有歸屬項目</b>：${list(ex.unmapped)}`);
+    blocks.push(
+      `<b>${ex.unmapped.length} 門課的標籤已失效</b>（通常是移除了某個身分別）：${list(ex.unmapped)}`
+    );
   if (ex.dropped.length)
     blocks.push(
       `<b>${num(ex.dropped.reduce((s, d) => s + d.credit, 0))} 學分因項目額滿且無溢出去處而未認列</b>：${list(ex.dropped)}`

@@ -39,12 +39,14 @@ assets/app.css          外觀
 
 engine/                 判定引擎（純函式，可在 Node 執行）
   index.js                對外入口：evaluate(plan, ruleset)
+  merge.js                身分模組合併
   subject.js              科目判定
   credit.js               學分判定
   ruleset.js              索引、標籤編輯套用、規則集健檢
 
-rulesets/               各系所規定（純資料，沒有程式邏輯）
-  dongji-113.js           動機系 113 學年
+rulesets/               身分模組（純資料，沒有程式邏輯）
+  major.dongji-113.js     主修：動機系 113 學年（129 學分）
+  minor.qf.js             輔系：計財系（＋20 學分）
   index.js                註冊表
 
 ui/                     介面層（不做任何計算）
@@ -62,9 +64,11 @@ ui/                     介面層（不做任何計算）
 UI 只需要知道一個函式：
 
 ```js
-import { evaluate } from './engine/index.js';
-import ruleset from './rulesets/dongji-113.js';
+import { evaluate, mergeModules } from './engine/index.js';
+import major from './rulesets/major.dongji-113.js';
+import minorQf from './rulesets/minor.qf.js';
 
+const ruleset = mergeModules([major, minorQf]);   // 129 + 20 = 149 學分
 const report = evaluate(plan, ruleset);
 ```
 
@@ -72,8 +76,10 @@ const report = evaluate(plan, ruleset);
 
 ```js
 {
-  rulesetId: 'dongji-113',
-  options:   { track: 'control', minor: 'qf' },   // 學生選的身分
+  majorId:     'major.dongji-113',    // 主修，只能一個
+  identityIds: ['minor.qf'],          // 額外身分，可以多個
+  customIdentities: [],               // 自訂身分：{ id, type, label, credits }
+  options:     { track: 'control' },  // 修業選項（專業學程四擇一）
   courses: [
     { id: 'c1', name: '微積分一', credit: 3, tag: 'tag.dept', semester: 'y1s1' }
   ],
@@ -112,6 +118,29 @@ const report = evaluate(plan, ruleset);
 
 群組可以巢狀，例如專業學程 = 核心 3 門（`all`）＋ 選修 2 門（`atLeastCourses`）。
 
+### 身分別決定畢業標準
+
+畢業應修學分 ＝ 每個身分模組的 `totalCredits` 相加。
+
+| 身分 | 學分 | 額外規定 |
+|---|---|---|
+| 主修 動機工程學系 | 129 | 校定必修 30 ＋ 系定必修 64 ＋ 專業學程 15 ＋ 其他選修 20 |
+| 輔系 計量財務金融學系 | ＋20 | 7 門指定科目須全部修畢 |
+| **合計** | **149** | |
+
+模組合併規則：
+
+| 欄位 | 合併方式 |
+|---|---|
+| `totalCredits` | 相加 |
+| `tags` | 串接（每個身分有自己的標籤，兩個輔系不會混在一起） |
+| `categories` | 同 `id` 的大類合併 buckets，`minCredits` 相加 |
+| `subjectGroups` | 串接 |
+
+所以「加一個輔系」＝「多合併一個模組」，引擎其他部分完全不用改。移除身分時，掛該身分標籤的課會變成未設標籤（課程本身保留），判定結果會列出來提醒。
+
+**自訂身分**：系統沒內建的輔系／雙主修／學分學程，可以在畫面上自己填名稱與學分，會即時產生一個專屬標籤與項目。
+
 ### 學分判定
 
 ```
@@ -124,7 +153,7 @@ const report = evaluate(plan, ruleset);
 | 系定必修 | 系定必修、物理領域 |
 | 專業學程 | 專業學程 |
 | 其他選修 | 主修選修 |
-| 其他身分 | 輔系、學分學程（不計入畢業總學分） |
+| 其他身分 | 各身分模組帶進來的標籤（輔系、雙主修、學分學程⋯⋯） |
 
 一門課只有一個標籤，所以沒有「一門課該算哪一類」的競合問題。需要處理的只有**額滿**：
 
@@ -135,14 +164,13 @@ const report = evaluate(plan, ruleset);
 
 ### 條件式規則
 
-任何節點都可以寫 `when`，對應學生選的身分：
+任何節點都可以寫 `when`，對應學生選的修業選項：
 
 ```js
 { when: { option: 'track', equals: 'control' } }   // 只在選電控學程時生效
-{ when: { option: 'minor', truthy: true } }        // 有輔系才生效
 ```
 
-沒選輔系時，輔系項目自動關閉；如果有課掛著輔系標籤，會被列在「未啟用」提醒裡。
+沒選學程時，四個學程的科目群組都不會出現。
 
 ---
 
@@ -154,10 +182,15 @@ const report = evaluate(plan, ruleset);
 
 ---
 
-## 新增一個系所
+## 新增一個系所或輔系
 
-1. 複製 `rulesets/dongji-113.js` 改成你要的內容
-2. 在 `rulesets/index.js` import 進來、加到 `RULESETS`
+**主修**：複製 `rulesets/major.dongji-113.js`，改內容，在 `rulesets/index.js` 加到 `MAJORS`。
+
+**輔系／雙主修／學分學程**：複製 `rulesets/minor.qf.js`，改內容，加到 `IDENTITIES`。要點：
+
+- `totalCredits` 是這個身分**額外**要求的學分
+- 大類 `id` 用 `'cat.identity'`，這樣多個身分會收在同一個「其他身分」底下
+- 標籤 id 要全域唯一（例 `tag.minor-qf`），合併時撞名會被健檢擋下來
 
 下拉選單會自動出現，**引擎和 UI 一行都不用改**。
 

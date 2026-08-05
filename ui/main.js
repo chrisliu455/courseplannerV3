@@ -38,7 +38,6 @@ function renderHeader(report) {
     if (ch) parts.push(ch.label);
   });
   $('#majorSub').textContent = parts.join('　｜　');
-
   $('#ledgerTotal').textContent = num(t.target);
   $('#ledgerPlanned').textContent = num(t.earned);
   $('#ledgerRemain').textContent = num(t.remaining);
