@@ -6,12 +6,20 @@
  *
  * plan.majorId ＋ plan.identityIds ＋ plan.customIdentities 決定要合併哪些身分模組，
  * store.ruleset 就是合併後的結果，畢業學分要求由這些身分相加而來。
+ *
+ * ── 不保存 ──────────────────────────────────
+ * PERSIST = false：每次開啟網站都是空白的，關掉分頁資料就不見。
+ * 要保留規劃請用畫面右上角的「匯出規劃」下載 JSON，下次「匯入規劃」讀回來。
+ * 想改回自動保存，把下面那行改成 true 就好，其他都不用動。
  */
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
 import { mergeModules, customModule } from '../engine/index.js';
 
+const PERSIST = false; // ← 改成 true 就會自動存在瀏覽器裡
+
 const STORAGE_KEY = 'credit-planner/plan/v2';
+const LEGACY_KEYS = ['credit-planner/plan/v1'];
 const PLAN_VERSION = 2;
 
 function emptyPlan() {
@@ -33,8 +41,17 @@ const listeners = new Set();
 
 /* ── 讀寫 ────────────────────────────────── */
 function load() {
+  if (!PERSIST) {
+    // 順便清掉先前版本留在瀏覽器裡的資料，避免關掉保存後舊資料還陰魂不散
+    try {
+      [STORAGE_KEY, ...LEGACY_KEYS].forEach((k) => localStorage.removeItem(k));
+    } catch {
+      /* 無痕模式讀不到 localStorage，忽略 */
+    }
+    return emptyPlan();
+  }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('credit-planner/plan/v1');
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_KEYS[0]);
     if (!raw) return emptyPlan();
     return migrate(JSON.parse(raw));
   } catch {
@@ -72,6 +89,7 @@ function migrate(data) {
 }
 
 function save() {
+  if (!PERSIST) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
   } catch {

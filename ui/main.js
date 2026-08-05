@@ -90,4 +90,11 @@ $('#resetBtn').addEventListener('click', () => {
   }
 });
 
+/* 沒有自動保存，所以排了課還沒匯出就要關掉時，提醒一下 */
+window.addEventListener('beforeunload', (e) => {
+  if (!store.plan.courses.length) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
 renderAll();
