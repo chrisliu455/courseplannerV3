@@ -7,20 +7,38 @@
  * plan.majorId ＋ plan.identityIds ＋ plan.customIdentities 決定要合併哪些身分模組，
  * store.ruleset 就是合併後的結果，畢業學分要求由這些身分相加而來。
  *
- * ── 不保存 ──────────────────────────────────
- * PERSIST = false：每次開啟網站都是空白的，關掉分頁資料就不見。
- * 要保留規劃請用畫面右上角的「匯出規劃」下載 JSON，下次「匯入規劃」讀回來。
- * 想改回自動保存，把下面那行改成 true 就好，其他都不用動。
+ * ── 自動保存 ────────────────────────────────
+ * 預設關閉：每次開啟網站都是空白的，關掉分頁資料就不見。
+ * 畫面右上角有「自動保存」開關可以隨時打開，不用改程式碼。
+ * 開關本身的狀態會記住；關閉時會把存的規劃一併刪除。
  */
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
 import { mergeModules, customModule } from '../engine/index.js';
 
-const PERSIST = false; // ← 改成 true 就會自動存在瀏覽器裡
-
 const STORAGE_KEY = 'credit-planner/plan/v2';
 const LEGACY_KEYS = ['credit-planner/plan/v1'];
+const PERSIST_KEY = 'credit-planner/persist';
 const PLAN_VERSION = 2;
+
+/** 預設不保存。使用者可以在畫面上打開。 */
+let persist = readPersistFlag();
+
+function readPersistFlag() {
+  try {
+    return localStorage.getItem(PERSIST_KEY) === 'on';
+  } catch {
+    return false; // 無痕模式讀不到 localStorage，一律當作不保存
+  }
+}
+
+function clearStored() {
+  try {
+    [STORAGE_KEY, ...LEGACY_KEYS].forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* 讀不到就算了 */
+  }
+}
 
 function emptyPlan() {
   return {
@@ -41,13 +59,9 @@ const listeners = new Set();
 
 /* ── 讀寫 ────────────────────────────────── */
 function load() {
-  if (!PERSIST) {
-    // 順便清掉先前版本留在瀏覽器裡的資料，避免關掉保存後舊資料還陰魂不散
-    try {
-      [STORAGE_KEY, ...LEGACY_KEYS].forEach((k) => localStorage.removeItem(k));
-    } catch {
-      /* 無痕模式讀不到 localStorage，忽略 */
-    }
+  if (!persist) {
+    // 沒開保存就順手清掉殘留資料，避免舊規劃陰魂不散
+    clearStored();
     return emptyPlan();
   }
   try {
@@ -89,7 +103,7 @@ function migrate(data) {
 }
 
 function save() {
-  if (!PERSIST) return;
+  if (!persist) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
   } catch {
@@ -125,6 +139,22 @@ export const store = {
   get modules() {
     return activeModules();
   },
+  /* 自動保存開關 */
+  get persistEnabled() {
+    return persist;
+  },
+  setPersist(on) {
+    persist = Boolean(on);
+    try {
+      localStorage.setItem(PERSIST_KEY, persist ? 'on' : 'off');
+    } catch {
+      /* 無痕模式：這次切換有效，下次開站會回到預設 */
+    }
+    if (persist) save();
+    else clearStored();
+    commit();
+  },
+
   subscribe(fn) {
     listeners.add(fn);
     return () => listeners.delete(fn);

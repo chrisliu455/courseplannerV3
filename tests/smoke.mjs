@@ -49,6 +49,20 @@ check('匯入清單有內容', $('#importList').children.length > 0, `${$('#impo
 check('八個學期格子都在', window.document.querySelectorAll('.sem-body').length === 8);
 check('動機系 114 → 應修 129', text('#ledgerTotal') === '129', text('#ledgerTotal'));
 check('判定分頁有兩個', $('#reportTabs').children.length === 2);
+check('版本標記有顯示', $('#buildStamp').textContent.trim().length > 0, $('#buildStamp').textContent);
+
+console.log('\n【自動保存開關】');
+check('預設關閉', store.persistEnabled === false);
+check('開關未打勾', $('#persistToggle').checked === false);
+check('頁尾說明是「不會保存」', $('#persistNote').textContent.includes('不會保存'));
+const pToggle = $('#persistToggle');
+pToggle.checked = true;
+pToggle.dispatchEvent(new window.Event('change', { bubbles: true }));
+check('點一下就開啟', store.persistEnabled === true);
+check('頁尾說明跟著改', $('#persistNote').textContent.includes('自動存'));
+pToggle.checked = false;
+pToggle.dispatchEvent(new window.Event('change', { bubbles: true }));
+check('再點一下關閉', store.persistEnabled === false);
 
 console.log('\n【勾選輔系】');
 const qfBox = window.document.querySelector('input[data-identity="minor.qf"]');
