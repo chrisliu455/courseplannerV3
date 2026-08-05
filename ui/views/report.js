@@ -196,6 +196,12 @@ function exceptionsHTML(ex) {
   const blocks = [];
   const list = (arr) => arr.map((c) => esc(c.name)).join('、');
 
+  if (ex.duplicates.length)
+    blocks.push(
+      `<b>${ex.duplicates.length} 門課排了不只一次</b>，學分會被重複計算：${ex.duplicates
+        .map((d) => `${esc(d.name)}（${d.count} 筆）`)
+        .join('、')}。請到待排清單或課表刪掉多餘的那幾筆。`
+    );
   if (ex.untagged.length)
     blocks.push(
       `<b>${ex.untagged.length} 門課還沒設標籤</b>，不會計入任何學分：${list(ex.untagged)}`

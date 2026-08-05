@@ -25,6 +25,23 @@ export function evaluateCredits(plan, ruleset, index) {
   const untagged = [];   // 沒有標籤的課
   const unmapped = [];   // 標籤沒有對應項目的課
   const inactive = [];   // 標籤對應的項目在目前身分下未啟用（例如沒輔系卻掛了輔系標籤）
+
+  // 同名課程重複排課：常見於一門課同時列在多個規定群組，學分會被重複計算
+  const byName = new Map();
+  courses.forEach((c) => {
+    const key = String(c.name).replace(/\s+/g, '').toLowerCase();
+    if (!byName.has(key)) byName.set(key, []);
+    byName.get(key).push(c);
+  });
+  const duplicates = [...byName.values()]
+    .filter((list) => list.length > 1)
+    .map((list) => ({
+      name: list[0].name,
+      count: list.length,
+      credit: toNumber(list[0].credit),
+      tags: [...new Set(list.map((c) => c.tag || '未設標籤'))],
+      courseIds: list.map((c) => c.id),
+    }));
   const allocationsOf = new Map(); // courseId -> [{bucketId, credit, viaOverflow, from}]
 
   courses.forEach((c) => {
@@ -161,6 +178,7 @@ export function evaluateCredits(plan, ruleset, index) {
       overCounted: round2(Math.max(0, actualCredits - totalEarned)),
     },
     exceptions: {
+      duplicates,
       untagged: untagged.map(brief),
       unmapped: unmapped.map(brief),
       inactive: inactive.map(brief),

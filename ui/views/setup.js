@@ -197,10 +197,26 @@ function bindEvents() {
   delegate(box, 'click', '#importAddBtn', () => {
     const picked = [...box.querySelectorAll('input[type=checkbox]:checked:not(:disabled)')];
     if (!picked.length) return toast('先勾選要加入的課程');
-    store.addCourses(
-      picked.map((b) => ({ name: b.dataset.name, credit: Number(b.dataset.credit), tag: b.dataset.tag || null }))
+
+    // 同一門課可能同時列在多個群組（例：工程光學既是物理五選二，也是電控學程選修）。
+    // 只加一次，標籤取第一次出現的那個，之後可以在卡片上自己改。
+    const seen = new Set();
+    const unique = [];
+    let skipped = 0;
+    picked.forEach((b) => {
+      const key = b.dataset.name.replace(/\s+/g, '').toLowerCase();
+      if (seen.has(key) || store.hasCourse(b.dataset.name)) return skipped++;
+      seen.add(key);
+      unique.push({ name: b.dataset.name, credit: Number(b.dataset.credit), tag: b.dataset.tag || null });
+    });
+
+    if (!unique.length) return toast('勾選的課程都已經在清單裡了');
+    store.addCourses(unique);
+    toast(
+      skipped
+        ? `已加入 ${unique.length} 門課，略過 ${skipped} 門重複的`
+        : `已加入 ${unique.length} 門課到待排清單`
     );
-    toast(`已加入 ${picked.length} 門課到待排清單`);
   });
 }
 

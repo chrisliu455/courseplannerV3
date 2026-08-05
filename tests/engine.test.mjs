@@ -416,6 +416,42 @@ test('全部修滿時判定畢業達標', () => {
   assert.equal(r.credit.total.met, true);
 });
 
+test('同名課程排兩次會被抓出來', () => {
+  const r = evaluate(
+    plan([
+      course('工程光學', 3, 'tag.physics'),
+      course('工程光學', 3, 'tag.track'), // 匯入時不小心加了兩筆
+      course('電磁學', 3, 'tag.physics'),
+    ]),
+    ruleset
+  );
+  assert.equal(r.credit.exceptions.duplicates.length, 1);
+  assert.equal(r.credit.exceptions.duplicates[0].name, '工程光學');
+  assert.equal(r.credit.exceptions.duplicates[0].count, 2);
+  assert.deepEqual(r.credit.exceptions.duplicates[0].tags, ['tag.physics', 'tag.track']);
+});
+
+test('沒有重複時 duplicates 是空的', () => {
+  const r = evaluate(plan([course('工程光學', 3, 'tag.physics')]), ruleset);
+  assert.deepEqual(r.credit.exceptions.duplicates, []);
+});
+
+test('工程光學標成物理領域就只會進物理領域，不會跑到其他選修', () => {
+  // 五門物理課全排，工程光學排在最後一筆
+  const names = ['電磁學', '近代物理導論', '普通物理一', '普通物理二', '工程光學'];
+  const r = evaluate(plan(names.map((n) => course(n, 3, 'tag.physics'))), ruleset);
+
+  assert.equal(findBucket(r, 'bkt.physics').earned, 15, '五門 15 學分全留在物理領域');
+  assert.equal(findBucket(r, 'bkt.elective').earned, 0, '其他選修一分都不該拿到');
+
+  const rows = findBucket(r, 'bkt.physics').courses.map((x) => x.name);
+  assert.ok(rows.includes('工程光學'));
+  assert.equal(r.credit.exceptions.dropped.length, 0);
+  r.credit.categories.forEach((cat) =>
+    cat.buckets.forEach((b) => b.courses.forEach((row) => assert.equal(row.viaOverflow, false)))
+  );
+});
+
 function findBucket(report, bucketId) {
   for (const cat of report.credit.categories) {
     const b = cat.buckets.find((x) => x.id === bucketId);
