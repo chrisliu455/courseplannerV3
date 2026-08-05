@@ -251,3 +251,21 @@ details.course-detail[open] summary::before { content: '▾ '; }
   border-top: 1px solid var(--hairline); margin-top: 5px; padding-top: 6px;
   font-weight: 700; color: var(--ink); font-size: 12.5px;
 }
+
+/* 學期表卡片上的「移回待排」按鈕 */
+.chip-btn {
+  background: none; border: 1px solid var(--hairline); color: var(--ink-soft);
+  border-radius: 2px; padding: 2px 6px; font-size: 12px; line-height: 1.2;
+  flex: 0 0 auto; font-weight: 400;
+}
+.chip-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--paper); }
+
+/* 科目有排到但學分算在別的領域 */
+.stray-note {
+  font-size: 11px; line-height: 1.6; color: var(--ink);
+  background: #FBF0E4; border-left: 3px solid var(--brass);
+  padding: 7px 10px; margin: 8px 11px 0; border-radius: 2px;
+}
+.subj-item .mismatch {
+  font-size: 10px; color: var(--brass); font-weight: 600; white-space: nowrap;
+}

@@ -3,9 +3,13 @@
  *
  * 流程：課程 →（標籤）→ 項目 bucket →（歸屬）→ 五大類 category → 畢業總學分
  *
- * 一門課只有一個標籤，所以歸屬沒有競合問題。真正需要處理的是「額滿」：
- * 項目可以設 cap（認列上限），超出的學分依 overflowTo 溢到別的項目，
- * 例如物理領域最多認 6 學分，多修的算進其他選修。
+ * ── 核心規則：一門課的學分只算進一個領域 ──────────────
+ * 歸屬完全由標籤決定。工程光學同時符合物理領域與專業學程，
+ * 但標籤設成「物理領域」，那 3 學分就只給物理，專業學程一分都拿不到。
+ * 要讓它算進專業學程，就把標籤改成「專業學程」——但那樣物理領域就沒有了。
+ *
+ * 額滿時（例：物理領域上限 6 學分）超出的課會**整門**轉到 overflowTo 指定的項目，
+ * 不會把一門課的學分拆成兩半分給兩個領域。
  */
 
 import { isActive, isCounted, toNumber } from './ruleset.js';
@@ -53,16 +57,16 @@ export function evaluateCredits(plan, ruleset, index) {
       const cap = bucket.cap == null ? Infinity : toNumber(bucket.cap);
 
       for (const item of items) {
-        const space = Math.max(0, cap - earned.get(bucketId));
-        const take = Math.min(space, item.credit);
+        const space = cap - earned.get(bucketId);
 
-        if (take > 0) {
-          earned.set(bucketId, earned.get(bucketId) + take);
+        // 一門課的學分只會落在一個領域，放不下就整門轉走，不切分。
+        if (item.credit <= space) {
+          earned.set(bucketId, earned.get(bucketId) + item.credit);
           takenBy.get(bucketId).push({
             courseId: item.course.id,
             name: item.course.name,
             credit: item.credit,
-            counted: take,
+            counted: item.credit,
             tag: item.course.tag,
             semester: item.course.semester,
             viaOverflow: Boolean(item.from),
@@ -70,19 +74,19 @@ export function evaluateCredits(plan, ruleset, index) {
           });
           allocationsOf.get(item.course.id).push({
             bucketId,
-            credit: take,
+            credit: item.credit,
             viaOverflow: Boolean(item.from),
             from: item.from,
           });
-        }
-
-        const left = item.credit - take;
-        if (left > 0) {
-          if (bucket.overflowTo && inbox.has(bucket.overflowTo)) {
-            inbox.get(bucket.overflowTo).push({ course: item.course, credit: left, from: bucketId });
-          } else {
-            dropped.push({ courseId: item.course.id, name: item.course.name, credit: left, bucketId });
-          }
+        } else if (bucket.overflowTo && inbox.has(bucket.overflowTo)) {
+          inbox.get(bucket.overflowTo).push({ course: item.course, credit: item.credit, from: bucketId });
+        } else {
+          dropped.push({
+            courseId: item.course.id,
+            name: item.course.name,
+            credit: item.credit,
+            bucketId,
+          });
         }
       }
     }

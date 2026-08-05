@@ -28,7 +28,7 @@ export function renderGrid() {
         <div class="sem-body" data-sem="${esc(sem.id)}">
           ${
             list.length
-              ? list.map((c) => chipHTML(c, tags)).join('')
+              ? list.map((c) => chipHTML(c, tags, 'grid')).join('')
               : '<div class="drop-hint">拖曳課程到這裡</div>'
           }
         </div>

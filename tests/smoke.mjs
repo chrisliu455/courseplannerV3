@@ -150,14 +150,47 @@ store.addCustomIdentity({ type: 'program', label: '人工智慧學程', credits:
 check('應修學分變成 141', text('#ledgerTotal') === '141', text('#ledgerTotal'));
 check('自訂身分出現在清單', $('#setupBox').textContent.includes('人工智慧學程'));
 
-console.log('\n【溢出規則實際跑一次】');
+console.log('\n【從課表移回待排池】');
 store.reset();
-['工程光學', '電磁學', '普通物理一'].forEach((n) =>
-  store.assign(store.addCourse({ name: n, credit: 3, tag: 'tag.physics' }).id, 'y2s1')
-);
-check('物理領域停在 6 學分', bucketOf('bkt.physics') === 6, String(bucketOf('bkt.physics')));
-check('多的 3 學分溢到其他選修', bucketOf('bkt.elective') === 3, String(bucketOf('bkt.elective')));
-check('畫面上出現「溢出」標記', window.document.body.innerHTML.includes('溢出'));
+const c1 = store.addCourse({ name: '測試課程', credit: 3, tag: 'tag.dept' });
+store.assign(c1.id, 'y1s1');
+check('課在學期表裡', window.document.querySelectorAll('.sem-body .chip').length === 1);
+const backBtn = window.document.querySelector('[data-unschedule]');
+check('學期表卡片有「移回」按鈕（不是刪除）', backBtn !== null);
+backBtn.click();
+check('課程沒有被刪掉', store.plan.courses.length === 1);
+check('semester 清空了', store.plan.courses[0].semester === null);
+check('回到待排池', $('#poolContainer').textContent.includes('測試課程'));
+check('學期表空了', window.document.querySelectorAll('.sem-body .chip').length === 0);
+check('待排池的按鈕才是刪除', window.document.querySelector('#poolContainer [data-del]') !== null);
+window.document.querySelector('#poolContainer [data-del]').click();
+check('待排池按 × 才真的刪除', store.plan.courses.length === 0);
+
+console.log('\n【一門課只算一個領域】');
+store.reset();
+store.setOption('track', 'control');
+const mk = (n, tag) => store.assign(store.addCourse({ name: n, credit: 3, tag }).id, 'y3s1');
+mk('工程光學', 'tag.physics');           // 同時符合物理與電控學程選修
+['控制系統一', '控制系統二', '電子學二', '振動學'].forEach((n) => mk(n, 'tag.track'));
+check('工程光學的學分全給物理領域', bucketOf('bkt.physics') === 3, String(bucketOf('bkt.physics')));
+check('專業學程拿不到那 3 學分', bucketOf('bkt.track') === 12, String(bucketOf('bkt.track')));
+$('#reportTabs').querySelector('[data-tab="subject"]').click();
+check('科目判定仍打勾', window.document.body.innerHTML.includes('工程光學'));
+check('畫面標示學分落在哪個領域', $('.stray-note') !== null && $('.stray-note').textContent.includes('物理領域'),
+  $('.stray-note') ? $('.stray-note').textContent.slice(0, 40) : '沒有提示');
+
+console.log('\n【沒有學分上限：超修全數計入】');
+store.reset();
+mk('工程光學', 'tag.physics');
+mk('電磁學', 'tag.physics');
+mk('近代物理導論', 'tag.physics');
+mk('普通物理一', 'tag.physics');
+check('物理領域拿到全部 12 學分', bucketOf('bkt.physics') === 12, String(bucketOf('bkt.physics')));
+check('其他選修沒有被溢出灌水', bucketOf('bkt.elective') === 0, String(bucketOf('bkt.elective')));
+$('#reportTabs').querySelector('[data-tab="credit"]').click();
+check('已認列 = 實修 12 學分', text('#ledgerPlanned') === '12', text('#ledgerPlanned'));
+check('畫面上不再出現「溢出」', !window.document.body.innerHTML.includes('溢出'));
+check('沒有未認列的學分提醒', !window.document.body.innerHTML.includes('未認列'));
 
 console.log('\n【結果】');
 check('沒有未捕捉的執行期錯誤', errors.length === 0, errors.join(' / '));

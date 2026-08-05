@@ -11,6 +11,9 @@ import { SEMESTERS } from '../../rulesets/index.js';
 let tab = 'credit';
 let bound = false;
 
+/** courseId → 這門課的學分實際落在哪個領域。用來解釋「為什麼這門課打了勾學分卻沒進來」 */
+let landedIn = new Map();
+
 const semLabel = (id) => {
   const s = SEMESTERS.find((x) => x.id === id);
   return s ? `${s.year}${s.term}` : '';
@@ -19,6 +22,11 @@ const semLabel = (id) => {
 export function renderReport(report) {
   const s = report.subject;
   const c = report.credit;
+
+  landedIn = new Map();
+  c.categories.forEach((cat) =>
+    cat.buckets.forEach((b) => b.courses.forEach((r) => landedIn.set(r.courseId, b.label)))
+  );
 
   $('#reportTabs').innerHTML = `
     <button data-tab="subject" aria-selected="${tab === 'subject'}" type="button">
@@ -53,6 +61,7 @@ function subjectHTML(s) {
 
 function groupHTML(g) {
   const done = g.satisfied && g.rawSatisfied;
+  const strays = collectStrays(g);
   const items = g.items.length
     ? `<div class="subj-items">${g.items.map(itemHTML).join('')}</div>`
     : '';
@@ -76,16 +85,41 @@ function groupHTML(g) {
         <span>${esc(g.label)}${g.note ? ` <span class="subj-note">${esc(g.note)}</span>` : ''}</span>
         <span class="status">${num(g.have)} / ${num(g.need)} ${esc(g.unit)}</span>
       </div>
+      ${
+        strays.length
+          ? `<div class="stray-note">⚑ ${strays.length} 門課有排到，但學分算在別的領域：${strays
+              .map((x) => `${esc(x.name)}（${esc(x.where)}）`)
+              .join('、')}。一門課的學分只會算一個領域，本項的學分可能因此不足。</div>`
+          : ''
+      }
       ${items}${subs}
     </div>`;
 }
 
+/** 撈出這個群組裡「有修但學分跑到別處」的課 */
+function collectStrays(g) {
+  const out = [];
+  const walk = (node) => {
+    node.items.forEach((i) => {
+      if (i.checked && i.tagMismatch) {
+        out.push({ name: i.name, where: landedIn.get(i.courseId) || '未計入任何領域' });
+      }
+    });
+    node.groups.forEach(walk);
+  };
+  walk(g);
+  return out;
+}
+
 function itemHTML(i) {
+  const where = i.tagMismatch ? landedIn.get(i.courseId) || '未計入' : '';
   return `
     <div class="subj-item${i.checked ? ' checked' : ''}" title="${esc(i.note || '')}">
       <span class="mark">${i.checked ? '☑' : '☐'}</span>
       <span class="nm">${esc(i.name)}${
-    i.tagMismatch ? ' <span class="mismatch" title="標籤與規則建議不同，學分可能算到別類">⚑</span>' : ''
+    where
+      ? ` <span class="mismatch" title="這門課的學分算在「${esc(where)}」，不會計入本項">⚑ ${esc(where)}</span>`
+      : ''
   }</span>
       <span class="sem">${i.checked ? esc(semLabel(i.semester)) : num(i.credit)}</span>
     </div>`;
@@ -140,9 +174,7 @@ function bucketHTML(b) {
           .map(
             (r) => `<div class="cd-row">
               <span>${esc(r.name)}${r.viaOverflow ? '<span class="cd-flag">溢出</span>' : ''}</span>
-              <span class="cd-num">${num(r.counted)}${
-              r.counted !== r.credit ? ` / ${num(r.credit)}` : ''
-            }</span>
+              <span class="cd-num">${num(r.counted)}</span>
             </div>`
           )
           .join('')}
@@ -178,7 +210,7 @@ function exceptionsHTML(ex) {
     );
   if (ex.dropped.length)
     blocks.push(
-      `<b>${num(ex.dropped.reduce((s, d) => s + d.credit, 0))} 學分因項目額滿且無溢出去處而未認列</b>：${list(ex.dropped)}`
+      `<b>${ex.dropped.length} 門課因所屬項目額滿、又沒有指定溢出去處而未認列</b>：${list(ex.dropped)}`
     );
 
   return blocks.length ? `<div class="notice bad">${blocks.join('<br>')}</div>` : '';

@@ -60,8 +60,12 @@ export function renderPool() {
   if (!bound) bindEvents();
 }
 
-/** 課程卡：學期表也用同一個函式，外觀一致 */
-export function chipHTML(course, tags) {
+/**
+ * 課程卡。學期表與待排池共用，差別只在右上角那顆按鈕：
+ *   待排池 → ×  刪除課程
+ *   學期表 → ↩  移回待排池（不刪課）
+ */
+export function chipHTML(course, tags, context = 'pool') {
   const tag = tags.find((t) => t.id === course.tag);
   const color = tag ? tag.color : 'var(--grey)';
   const warn = !course.tag
@@ -83,7 +87,11 @@ export function chipHTML(course, tags) {
       </div>
     </div>
     <span class="credit">${num(course.credit)}</span>
-    <button class="del-x" data-del="${course.id}" title="刪除課程" type="button">×</button>
+    ${
+      context === 'grid'
+        ? `<button class="chip-btn unschedule" data-unschedule="${course.id}" title="移回待排清單" type="button">↩</button>`
+        : `<button class="del-x" data-del="${course.id}" title="刪除課程" type="button">×</button>`
+    }
   </div>`;
 }
 
@@ -122,6 +130,12 @@ function bindEvents() {
   });
 
   document.addEventListener('click', (e) => {
+    const back = e.target.closest('[data-unschedule]');
+    if (back) {
+      e.stopPropagation();
+      store.assign(back.dataset.unschedule, null);
+      return toast('已移回待排清單');
+    }
     const del = e.target.closest('[data-del]');
     if (del) {
       e.stopPropagation();

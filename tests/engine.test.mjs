@@ -59,33 +59,160 @@ test('沒排進學期的課不列入判定', () => {
   assert.equal(r.credit.total.actualCredits, 0);
 });
 
-test('物理領域超過 6 學分時溢出到其他選修', () => {
+test('沒有任何項目設學分上限', () => {
+  const caps = [];
+  ruleset.categories.forEach((cat) =>
+    cat.buckets.forEach((b) => {
+      if (b.cap != null) caps.push(`${cat.label} › ${b.label} = ${b.cap}`);
+      if (b.overflowTo) caps.push(`${cat.label} › ${b.label} 設了溢出目標`);
+    })
+  );
+  assert.deepEqual(caps, [], '規則集不應有學分上限或溢出設定');
+});
+
+test('物理超修的學分留在物理領域，不會溢出', () => {
   const r = evaluate(
     plan([
       course('工程光學', 3, 'tag.physics'),
       course('電磁學', 3, 'tag.physics'),
-      course('普通物理一', 3, 'tag.physics'), // 第 3 門，超出上限
+      course('普通物理一', 3, 'tag.physics'), // 五選二之外多修的第 3 門
     ]),
     ruleset
   );
-  const physics = findBucket(r, 'bkt.physics');
-  const elective = findBucket(r, 'bkt.elective');
-  assert.equal(physics.earned, 6, '物理領域應停在 6 學分');
-  assert.equal(elective.earned, 3, '多的 3 學分應落到其他選修');
-  assert.equal(elective.courses[0].viaOverflow, true);
+  assert.equal(findBucket(r, 'bkt.physics').earned, 9, '9 學分全留在物理領域');
+  assert.equal(findBucket(r, 'bkt.elective').earned, 0, '其他選修拿不到超修的學分');
   assert.equal(r.credit.total.actualCredits, 9);
+  assert.equal(r.credit.total.earned, 9, '認列學分等於實修學分');
+  assert.equal(r.credit.total.overCounted, 0, '沒有任何學分因額滿而消失');
 });
 
-test('溢出可以只切一半：4 學分課碰到剩 3 學分空間', () => {
+test('專業學程超修也全數計入', () => {
+  const courses = ['控制系統一', '控制系統二', '電子學二', '振動學', '數值分析', '電磁學'].map((n) =>
+    course(n, 3, 'tag.track')
+  );
+  const r = evaluate(plan(courses, { track: 'control' }), ruleset);
+  assert.equal(findBucket(r, 'bkt.track').earned, 18, '18 學分全計入專業學程');
+  assert.equal(findBucket(r, 'bkt.elective').earned, 0);
+});
+
+test('認列學分永遠等於實修學分（沒有上限就不會有學分被丟掉）', () => {
+  const r = evaluate(
+    plan(
+      [
+        course('大學中文', 2, 'tag.chinese'),
+        course('工程光學', 3, 'tag.physics'),
+        course('電磁學', 3, 'tag.physics'),
+        course('近代物理導論', 3, 'tag.physics'),
+        course('普通物理一', 3, 'tag.physics'),
+        course('控制系統一', 3, 'tag.track'),
+      ],
+      { track: 'control' }
+    ),
+    ruleset
+  );
+  assert.equal(r.credit.total.earned, r.credit.total.actualCredits);
+  assert.equal(r.credit.exceptions.dropped.length, 0);
+});
+
+test('引擎仍支援上限與溢出（只是動機系沒用到）', () => {
+  const capped = {
+    id: 'test',
+    label: '測試',
+    totalCredits: 10,
+    tags: [
+      { id: 'tag.a', label: 'A', color: '#000' },
+      { id: 'tag.b', label: 'B', color: '#111' },
+    ],
+    categories: [
+      {
+        id: 'cat.t',
+        label: '測試大類',
+        minCredits: 10,
+        buckets: [
+          { id: 'bkt.a', label: 'A 項', tags: ['tag.a'], minCredits: 6, cap: 6, overflowTo: 'bkt.b' },
+          { id: 'bkt.b', label: 'B 項', tags: ['tag.b'], minCredits: 4 },
+        ],
+      },
+    ],
+    subjectGroups: [],
+  };
+  const r = evaluate(
+    { courses: [course('甲', 3, 'tag.a'), course('乙', 3, 'tag.a'), course('丙', 3, 'tag.a')] },
+    capped
+  );
+  assert.equal(findBucket(r, 'bkt.a').earned, 6);
+  assert.equal(findBucket(r, 'bkt.b').earned, 3);
+  assert.equal(findBucket(r, 'bkt.b').courses[0].viaOverflow, true);
+});
+
+test('一門課的學分只會出現在一個領域', () => {
   const r = evaluate(
     plan([
       course('工程光學', 3, 'tag.physics'),
-      course('某物理課', 4, 'tag.physics'), // 只能認 3，剩 1 溢出
+      course('電磁學', 3, 'tag.physics'),
+      course('普通物理一', 3, 'tag.physics'),
+      course('控制系統一', 3, 'tag.track'),
     ]),
     ruleset
   );
-  assert.equal(findBucket(r, 'bkt.physics').earned, 6);
-  assert.equal(findBucket(r, 'bkt.elective').earned, 1);
+  // 每門課在 allocations 裡最多一筆
+  Object.entries(r.credit.allocations).forEach(([id, allocs]) => {
+    assert.ok(allocs.length <= 1, `課程 ${id} 被分配到 ${allocs.length} 個領域`);
+  });
+  // 同一個 courseId 不會同時出現在兩個 bucket 的課程清單裡
+  const seen = new Map();
+  r.credit.categories.forEach((cat) =>
+    cat.buckets.forEach((b) =>
+      b.courses.forEach((row) => {
+        assert.ok(!seen.has(row.courseId), `${row.name} 同時出現在「${seen.get(row.courseId)}」與「${b.label}」`);
+        seen.set(row.courseId, b.label);
+      })
+    )
+  );
+});
+
+test('工程光學標成物理領域時，專業學程拿不到那 3 學分', () => {
+  const p = plan(
+    [
+      course('工程光學', 3, 'tag.physics'), // 同時符合物理與電控學程選修，但標籤是物理
+      course('控制系統一', 3, 'tag.track'),
+      course('控制系統二', 3, 'tag.track'),
+      course('電子學二', 3, 'tag.track'),
+      course('振動學', 3, 'tag.track'),
+    ],
+    { track: 'control' }
+  );
+  const r = evaluate(p, ruleset);
+
+  assert.equal(findBucket(r, 'bkt.physics').earned, 3, '學分全給物理領域');
+  assert.equal(findBucket(r, 'bkt.track').earned, 12, '專業學程只有 4 門 track 課的 12 學分');
+  assert.equal(findBucket(r, 'bkt.track').checks[0].have, 4, '專業學程門數也不計入工程光學');
+
+  // 改標籤成專業學程，學分就整個搬過去
+  p.courses[0].tag = 'tag.track';
+  const r2 = evaluate(p, ruleset);
+  assert.equal(findBucket(r2, 'bkt.physics').earned, 0, '物理領域變成 0');
+  assert.equal(findBucket(r2, 'bkt.track').earned, 15);
+  assert.equal(findBucket(r2, 'bkt.track').checks[0].have, 5);
+});
+
+test('科目判定仍會打勾，但標記出學分落到別處', () => {
+  const r = evaluate(
+    plan([course('工程光學', 3, 'tag.physics')], { track: 'control' }),
+    ruleset
+  );
+  const physItem = r.subject.groups
+    .find((g) => g.id === 'grp.physics')
+    .items.find((i) => i.name === '工程光學');
+  assert.equal(physItem.checked, true);
+  assert.equal(physItem.tagMismatch, false, '在物理群組裡標籤是相符的');
+
+  const trackItem = r.subject.groups
+    .find((g) => g.id === 'grp.track.control')
+    .groups.find((g) => g.id === 'grp.track.control.elec')
+    .items.find((i) => i.name === '工程光學');
+  assert.equal(trackItem.checked, true, '有排到就打勾');
+  assert.equal(trackItem.tagMismatch, true, '但標籤不是專業學程，要標記出來');
 });
 
 test('核心通識未滿 4 門時通識項目不算達標', () => {
