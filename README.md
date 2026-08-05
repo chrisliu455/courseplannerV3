@@ -45,6 +45,7 @@ engine/                 判定引擎（純函式，可在 Node 執行）
   ruleset.js              索引、標籤編輯套用、規則集健檢
 
 rulesets/               身分模組（純資料，沒有程式邏輯）
+  major.dongji-114.js     主修：動機系 114 學年（預設，資料待核對）
   major.dongji-113.js     主修：動機系 113 學年（129 學分）
   minor.qf.js             輔系：計財系（＋20 學分）
   index.js                註冊表
@@ -124,7 +125,7 @@ const report = evaluate(plan, ruleset);
 
 | 身分 | 學分 | 額外規定 |
 |---|---|---|
-| 主修 動機工程學系 | 129 | 校定必修 30 ＋ 系定必修 64 ＋ 專業學程 15 ＋ 其他選修 20 |
+| 主修 動機工程學系 114 | 129 | 校定必修 30 ＋ 系定必修 64 ＋ 專業學程 15 ＋ 其他選修 20 |
 | 輔系 計量財務金融學系 | ＋20 | 7 門指定科目須全部修畢 |
 | **合計** | **149** | |
 
@@ -184,9 +185,19 @@ const report = evaluate(plan, ruleset);
 
 ## 新增一個系所或輔系
 
-**主修**：複製 `rulesets/major.dongji-113.js`，改內容，在 `rulesets/index.js` 加到 `MAJORS`。
+**主修**：複製 `rulesets/major.dongji-114.js`，改內容，在 `rulesets/index.js` 加到 `MAJORS`。畫面上是單選。
 
-**輔系／雙主修／學分學程**：複製 `rulesets/minor.qf.js`，改內容，加到 `IDENTITIES`。要點：
+模組可以標註資料狀態，畫面會顯示提醒：
+
+```js
+dataStatus: 'unverified',
+dataNote: '課程資料沿用 113 學年課表，尚未與 114 學年公告核對',
+draft: true,   // 資料還沒填完，清單上會標「草稿」
+```
+
+核對完把 `dataStatus` 改成 `'verified'`、刪掉 `dataNote`，提醒就會消失。
+
+**輔系／雙主修／學分學程**：複製 `rulesets/minor.qf.js`，改內容，加到 `IDENTITIES`。畫面上是可複選的勾選框。要點：
 
 - `totalCredits` 是這個身分**額外**要求的學分
 - 大類 `id` 用 `'cat.identity'`，這樣多個身分會收在同一個「其他身分」底下

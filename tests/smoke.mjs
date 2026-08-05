@@ -38,16 +38,24 @@ const check = (label, cond, extra = '') => {
 };
 
 console.log('\n【啟動】');
-check('側欄設定區有渲染', $('#majorSelect') !== null);
+check('主修單選清單有渲染', window.document.querySelectorAll('input[name=majorPick]').length === 2,
+  String(window.document.querySelectorAll('input[name=majorPick]').length) + ' 個主修');
+check('額外身分勾選框有渲染', window.document.querySelectorAll('input[data-identity]').length >= 1);
+check('預設勾選動機系 114',
+  window.document.querySelector('input[name=majorPick]:checked').value === 'major.dongji-114',
+  window.document.querySelector('input[name=majorPick]:checked').value);
+check('114 資料未核對有提醒', $('.data-warn') !== null && $('.data-warn').textContent.includes('核對'));
 check('匯入清單有內容', $('#importList').children.length > 0, `${$('#importList').children.length} 列`);
 check('八個學期格子都在', window.document.querySelectorAll('.sem-body').length === 8);
-check('主修動機系 → 應修 129', text('#ledgerTotal') === '129', text('#ledgerTotal'));
+check('動機系 114 → 應修 129', text('#ledgerTotal') === '129', text('#ledgerTotal'));
 check('判定分頁有兩個', $('#reportTabs').children.length === 2);
 
-console.log('\n【加入輔系身分】');
-store.addIdentity('minor.qf');
+console.log('\n【勾選輔系】');
+const qfBox = window.document.querySelector('input[data-identity="minor.qf"]');
+qfBox.checked = true;
+qfBox.dispatchEvent(new window.Event('change', { bubbles: true }));
 check('應修學分變成 149', text('#ledgerTotal') === '149', text('#ledgerTotal'));
-check('身分清單出現輔系', window.document.querySelectorAll('.identity-item').length === 1);
+check('輔系維持勾選狀態', window.document.querySelector('input[data-identity="minor.qf"]').checked);
 check('標題列同時顯示兩個身分',
   $('#majorSub').textContent.includes('動機') && $('#majorSub').textContent.includes('計量財務'),
   $('#majorSub').textContent);
@@ -115,12 +123,27 @@ const scheduled = store.plan.courses.filter((c) => c.semester).length;
 check('匯入後畫面與資料一致', window.document.querySelectorAll('.sem-body .chip').length === scheduled,
   `畫面 ${window.document.querySelectorAll('.sem-body .chip').length} / 資料 ${scheduled}`);
 
-console.log('\n【移除身分 → 學分要求跟著降】');
+console.log('\n【取消勾選 → 學分要求跟著降】');
 const qfCourses = store.identityCourseCount('minor.qf');
-store.removeIdentity('minor.qf');
+const qfBox2 = window.document.querySelector('input[data-identity="minor.qf"]');
+qfBox2.checked = false;
+qfBox2.dispatchEvent(new window.Event('change', { bubbles: true }));
 check('應修學分回到 129', text('#ledgerTotal') === '129', text('#ledgerTotal'));
 check('原輔系課程變成未設標籤（課沒被刪）',
   store.plan.courses.filter((c) => c.tag === null).length >= qfCourses);
+
+console.log('\n【切換入學年度】');
+const pick = (v) => {
+  const r = window.document.querySelector(`input[name=majorPick][value="${v}"]`);
+  r.checked = true;
+  r.dispatchEvent(new window.Event('change', { bubbles: true }));
+};
+pick('major.dongji-113');
+check('切到 113 學年', store.plan.majorId === 'major.dongji-113');
+check('113 是已核對資料，沒有提醒', $('.data-warn') === null);
+pick('major.dongji-114');
+check('切回 114 學年 → 129', text('#ledgerTotal') === '129', text('#ledgerTotal'));
+check('114 又出現待核對提醒', $('.data-warn') !== null);
 
 console.log('\n【自訂身分】');
 store.addCustomIdentity({ type: 'program', label: '人工智慧學程', credits: 12 });

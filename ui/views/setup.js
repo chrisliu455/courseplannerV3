@@ -16,66 +16,29 @@ export function renderSetup() {
   const { plan, ruleset } = store;
   const major = MAJORS.find((m) => m.id === plan.majorId);
 
-  /* 已加入的額外身分（內建 ＋ 自訂） */
-  const extras = [
-    ...plan.identityIds
-      .map((id) => IDENTITIES.find((m) => m.id === id))
-      .filter(Boolean)
-      .map((m) => ({ id: m.id, type: m.type, label: m.label, credits: m.totalCredits, builtin: true })),
-    ...plan.customIdentities.map((c) => ({ ...c, builtin: false })),
-  ];
-
-  /* 還沒加入的內建身分 */
-  const available = IDENTITIES.filter((m) => !plan.identityIds.includes(m.id));
+  /* 草稿或未核對的資料，畫面上要講清楚 */
+  const dataWarnings = store.modules
+    .filter((m) => m.dataNote)
+    .map((m) => `${m.label}：${m.dataNote}`);
 
   $('#setupBox').innerHTML = `
-    <label for="majorSelect">主修</label>
-    <select id="majorSelect">
-      ${MAJORS.map(
-        (m) =>
-          `<option value="${esc(m.id)}" ${m.id === plan.majorId ? 'selected' : ''}>${esc(m.label)}${
-            m.admissionYear ? `　${m.admissionYear} 學年入學` : ''
-          }</option>`
-      ).join('')}
-    </select>
+    <fieldset class="pick-group">
+      <legend>主修（擇一）</legend>
+      ${MAJORS.map((m) => majorRow(m, m.id === plan.majorId)).join('')}
+    </fieldset>
 
-    <label>額外身分</label>
+    <fieldset class="pick-group">
+      <legend>額外身分（可複選）</legend>
+      ${IDENTITIES.map((m) => identityRow(m, plan.identityIds.includes(m.id))).join('')}
+      ${plan.customIdentities.map((c) => customRow(c)).join('')}
+      <button class="link-btn" id="identityCustomBtn" type="button" style="margin-top:8px">＋ 自訂身分（其他輔系／雙主修／學分學程）</button>
+    </fieldset>
+
     ${
-      extras.length
-        ? extras
-            .map(
-              (e) => `
-      <div class="identity-item">
-        <span class="badge type-${esc(e.type)}">${esc(typeLabel(e.type))}</span>
-        <span class="nm">${esc(e.label)}</span>
-        <span class="mono cr">＋${num(e.credits)}</span>
-        <button class="del-x" data-remove-identity="${esc(e.id)}" title="移除這個身分" type="button">×</button>
-      </div>`
-            )
-            .join('')
-        : '<p class="empty-note" style="padding:2px">尚未加入。只算主修的畢業學分。</p>'
+      dataWarnings.length
+        ? `<div class="data-warn">${dataWarnings.map((w) => esc(w)).join('<br>')}</div>`
+        : ''
     }
-
-    <div class="identity-add">
-      <select id="identityPick">
-        ${
-          available.length
-            ? available
-                .map(
-                  (m) =>
-                    `<option value="${esc(m.id)}">${esc(typeLabel(m.type))}：${esc(m.label)}（＋${num(
-                      m.totalCredits
-                    )}）</option>`
-                )
-                .join('')
-            : '<option value="">— 內建身分都加完了 —</option>'
-        }
-      </select>
-      <button class="btn-ghost btn-small" id="identityAddBtn" type="button" ${
-        available.length ? '' : 'disabled'
-      }>＋ 加入</button>
-    </div>
-    <button class="link-btn" id="identityCustomBtn" type="button" style="margin-top:8px">找不到？自訂一個身分</button>
 
     <div class="credit-sum">
       ${store.modules
@@ -114,6 +77,36 @@ export function renderSetup() {
 
   renderImportPanel();
   if (!bound) bindEvents();
+}
+
+/* ── 勾選列 ───────────────────────────────── */
+function majorRow(m, checked) {
+  const year = m.admissionYear ? `${m.admissionYear} 學年入學` : '';
+  return `
+    <label class="pick-row${m.draft ? ' draft' : ''}">
+      <input type="radio" name="majorPick" value="${esc(m.id)}" ${checked ? 'checked' : ''}>
+      <span class="nm">${esc(m.label)}${year ? `<span class="meta">${esc(year)}</span>` : ''}</span>
+      ${m.draft ? '<span class="flag-draft">草稿</span>' : ''}
+      <span class="mono cr">${m.totalCredits ? num(m.totalCredits) : '—'}</span>
+    </label>`;
+}
+
+function identityRow(m, checked) {
+  return `
+    <label class="pick-row">
+      <input type="checkbox" data-identity="${esc(m.id)}" ${checked ? 'checked' : ''}>
+      <span class="nm">${esc(typeLabel(m.type))}　${esc(m.label)}</span>
+      <span class="mono cr">＋${num(m.totalCredits)}</span>
+    </label>`;
+}
+
+function customRow(c) {
+  return `
+    <label class="pick-row">
+      <input type="checkbox" data-identity="${esc(c.id)}" checked>
+      <span class="nm">${esc(typeLabel(c.type))}　${esc(c.label)}</span>
+      <span class="mono cr">＋${num(c.credits)}</span>
+    </label>`;
 }
 
 /* ── 規定科目匯入 ─────────────────────────── */
@@ -171,25 +164,26 @@ function bindEvents() {
 
   setup.addEventListener('change', (e) => {
     const t = e.target;
-    if (t.id === 'majorSelect') return store.setMajor(t.value);
+    if (t.name === 'majorPick') return store.setMajor(t.value);
     if (t.dataset.option) return store.setOption(t.dataset.option, t.value);
+
+    if (t.dataset.identity) {
+      const id = t.dataset.identity;
+      if (t.checked) {
+        store.addIdentity(id);
+        return toast('已加入身分，畢業學分要求已更新');
+      }
+      const n = store.identityCourseCount(id);
+      if (n && !confirm(`有 ${n} 門課掛著這個身分的標籤，取消後它們會變成未設標籤（課程本身不會被刪除）。確定取消？`)) {
+        t.checked = true;
+        return;
+      }
+      store.removeIdentity(id);
+      toast('已移除身分');
+    }
   });
   setup.addEventListener('input', (e) => {
     if (e.target.id === 'studentName') store.setMeta('studentName', e.target.value);
-  });
-
-  delegate(setup, 'click', '#identityAddBtn', () => {
-    const id = $('#identityPick').value;
-    if (!id) return;
-    if (store.addIdentity(id)) toast('已加入身分，畢業學分要求已更新');
-  });
-
-  delegate(setup, 'click', '[data-remove-identity]', (e, btn) => {
-    const id = btn.dataset.removeIdentity;
-    const n = store.identityCourseCount(id);
-    if (n && !confirm(`有 ${n} 門課掛著這個身分的標籤，移除後它們會變成未設標籤（課程本身不會被刪除）。確定移除？`)) return;
-    store.removeIdentity(id);
-    toast('已移除身分');
   });
 
   delegate(setup, 'click', '#identityCustomBtn', openCustomDialog);
