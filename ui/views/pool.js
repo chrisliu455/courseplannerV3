@@ -1,8 +1,11 @@
 /**
  * ui/views/pool.js — 新增課程 ＋ 待排課程池
  *
- * 每張課程卡上都有標籤下拉選單，直接在卡片上改標籤，
- * 改完引擎馬上重算。這就是「要可編輯標籤」最常用到的地方。
+ * 標籤選擇分兩層：先選課程類別（＝學分項目），需要細分時才問第二個問題。
+ * 例如「通識」底下有核心向度一～四與一般通識，選了通識才會出現第二個下拉。
+ * 分組是從規則集的 bucket 結構自動長出來的，不是寫死通識。
+ *
+ * 課程卡上的標籤選單則用 optgroup 呈現同樣的層次，維持卡片精簡。
  */
 
 import { store } from '../store.js';
@@ -26,24 +29,54 @@ export function renderPool() {
 
   /* 新增課程表單（保留使用者已輸入的內容） */
   const form = $('#addCourseBox');
+  const groups = buildGroups(tags);
   const keep = {
     name: form.querySelector('#courseName')?.value || '',
     credit: form.querySelector('#courseCredit')?.value || '',
+    group: form.querySelector('#courseGroup')?.value ?? '',
     tag: form.querySelector('#courseTag')?.value || '',
   };
+
+  const group = groups.find((g) => g.id === keep.group) || null;
+  const needsDetail = group && group.tags.length > 1;
+  const detailValue = group && group.tags.some((t) => t.id === keep.tag) ? keep.tag : group?.tags[0].id;
+
   form.innerHTML = `
     <label for="courseName">課程名稱</label>
     <input type="text" id="courseName" placeholder="例：資料結構" value="${esc(keep.name)}">
     <div class="row2">
       <div>
-        <label for="courseCredit">學分</label>
+        <label for="courseCredit">學分數</label>
         <input type="number" id="courseCredit" min="0" step="0.5" placeholder="3" value="${esc(keep.credit)}">
       </div>
       <div>
-        <label for="courseTag">標籤</label>
-        <select id="courseTag">${tagOptions(tags, keep.tag)}</select>
+        <label for="courseGroup">課程類別</label>
+        <select id="courseGroup">
+          <option value="" ${!group ? 'selected' : ''}>— 未設定 —</option>
+          ${groups
+            .map(
+              (g) =>
+                `<option value="${esc(g.id)}" ${g.id === keep.group ? 'selected' : ''}>${esc(g.label)}${
+                  g.active ? '' : '（未啟用）'
+                }</option>`
+            )
+            .join('')}
+        </select>
       </div>
     </div>
+    ${
+      needsDetail
+        ? `<label for="courseTag">這門${esc(group.label)}屬於哪一項？</label>
+           <select id="courseTag" class="detail-pick">
+             ${group.tags
+               .map(
+                 (t) =>
+                   `<option value="${esc(t.id)}" ${t.id === detailValue ? 'selected' : ''}>${esc(t.label)}</option>`
+               )
+               .join('')}
+           </select>`
+        : `<input type="hidden" id="courseTag" value="${esc(group ? group.tags[0].id : '')}">`
+    }
     <button class="btn-primary" id="addCourseBtn" type="button">＋ 加入待排清單</button>
   `;
 
@@ -95,15 +128,39 @@ export function chipHTML(course, tags, context = 'pool') {
   </div>`;
 }
 
+/**
+ * 把標籤依所屬項目分組。同一個項目底下有多個標籤時（例：通識的四個向度），
+ * 新增課程表單才會問第二個問題。分組完全由規則集決定。
+ */
+function buildGroups(tags) {
+  const groups = [];
+  tags.forEach((t) => {
+    const id = t.bucketId || '__none__';
+    let g = groups.find((x) => x.id === id);
+    if (!g) {
+      g = { id, label: t.bucketLabel || '未歸屬', category: t.categoryLabel || '', active: t.active, tags: [] };
+      groups.push(g);
+    }
+    g.tags.push(t);
+  });
+  return groups;
+}
+
+/** 卡片上的單一下拉：用 optgroup 表現同樣的層次，但不佔兩行 */
 function tagOptions(tags, current) {
+  const groups = buildGroups(tags);
+  const opt = (t) =>
+    `<option value="${esc(t.id)}" ${t.id === current ? 'selected' : ''}>${esc(t.label)}${
+      t.active ? '' : '（未啟用）'
+    }</option>`;
+
   return (
     `<option value="" ${!current ? 'selected' : ''}>— 未設標籤 —</option>` +
-    tags
-      .map(
-        (t) =>
-          `<option value="${esc(t.id)}" ${t.id === current ? 'selected' : ''}>${esc(t.label)}${
-            t.active ? '' : '（未啟用）'
-          }</option>`
+    groups
+      .map((g) =>
+        g.tags.length > 1
+          ? `<optgroup label="${esc(g.label)}">${g.tags.map(opt).join('')}</optgroup>`
+          : opt(g.tags[0])
       )
       .join('')
   );
@@ -116,6 +173,9 @@ function bindEvents() {
   delegate($('#addCourseBox'), 'click', '#addCourseBtn', addCourse);
   $('#addCourseBox').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.target.id === 'courseName' || e.target.id === 'courseCredit')) addCourse();
+  });
+  $('#addCourseBox').addEventListener('change', (e) => {
+    if (e.target.id === 'courseGroup') renderPool(); // 換類別 → 重畫第二層
   });
 
   $('#searchCourse').addEventListener('input', (e) => {

@@ -288,3 +288,6 @@ details.course-detail[open] summary::before { content: '▾ '; }
 .persist-toggle input { width: auto; margin: 0; accent-color: var(--maroon); }
 .persist-toggle span { display: flex; flex-direction: column; line-height: 1.25; }
 .persist-toggle small { font-size: 9.5px; opacity: .75; }
+
+/* 新增課程的第二層細分選單 */
+select.detail-pick { border-color: var(--brass); }
