@@ -201,61 +201,113 @@ const report = evaluate(plan, ruleset);
 
 ## 新增一個系所或輔系
 
-`rulesets/` 底下有兩份加了完整註解的範本，複製改內容即可，**引擎和 UI 一行都不用改**。
+### 步驟
 
-| 要加什麼 | 複製哪份範本 | 註冊到哪 |
-|---|---|---|
-| 主修系所 | `_TEMPLATE.major.js` | `rulesets/index.js` 的 `MAJORS` |
-| 輔系／雙主修／學分學程 | `_TEMPLATE.minor.js` | `rulesets/index.js` 的 `IDENTITIES` |
+1. **複製範本**：`rulesets/_TEMPLATE.major.js` → 改名成 `major.你的系-114.js`
+   （輔系／雙主修／學分學程改用 `rulesets/minor.qf.js` 當範本，`type` 填 `minor`／`doubleMajor`／`program`）
+2. **填內容**：照範本裡的註解換成你的系的規定
+3. **註冊**：在 `rulesets/index.js` import 進來，主修加到 `MAJORS`、額外身分加到 `IDENTITIES`
+4. **檢查**：`node tests/check-rulesets.mjs`
+5. **上傳**：整包檔案一起傳，按 Ctrl+Shift+R 重新整理
 
-三個步驟：
+引擎和 UI 一行都不用改，下拉選單／勾選框會自動出現。
 
-1. 複製範本，改名成 `major.你的系-114.js`
-2. 照註解填入標籤、大類、規定科目
-3. 在 `rulesets/index.js` 多一行 `import`，加進對應陣列
-
-存檔重整，清單就會出現。主修是單選、額外身分是可複選的勾選框。
-
-### 填寫要點
-
-- **`id` 全域唯一**：標籤、項目、大類的 id 撞名會被健檢擋下來。標籤 id 建議帶系名（`tag.minor-qf`），這樣輔兩個系才不會混在一起。
-- **數字要對得起來**：各大類 `minCredits` 的加總必須等於 `totalCredits`，算錯時判定結果最上方會跳警告。
-- **每個標籤都要有歸屬**：沒被任何項目收走的標籤，掛它的課不會計入學分，健檢會提醒。
-- **額外身分的大類 id 固定用 `cat.identity`**，多個身分才會合併顯示在同一個「其他身分」底下。
-- **課名有別稱**時加 `aliases: ['程式設計(一)']`，比對會忽略空白與大小寫。
-- **資料還沒核對完**就填 `dataStatus` 與 `dataNote`，畫面會顯示提醒，核對完刪掉即可。
-
-### 條件式規則
-
-分組、學程這種「選了才生效」的規定，用 `when` 搭配 `options`：
-
-```js
-options: [{ id:'group', label:'分組', choices:[{value:'a',label:'甲組'}, ...] }]
-
-// 規則節點上：
-{ when: { option:'group', equals:'a' } }   // 只在選甲組時出現
-{ when: { option:'group', in:['a','b'] } }
-{ when: { option:'minor', truthy:true } }
-```
-
-### 驗證
-
-改完跑一次，範本與現有規則集都會被檢查：
+### 檢查工具
 
 ```bash
-node tests/templates.mjs
-node --test tests/engine.test.mjs
+node tests/check-rulesets.mjs
 ```
+
+會抓出這些問題並指名位置：
+
+```
+✗ 學分對不上：各大類加總 129，但 totalCredits 寫 132（差 -3）
+✗ 科目引用了不存在的標籤：系定必修科目 › 微積分一 → tag.打錯的標籤
+✗ when 引用了不存在的選項：電控學程 → when.option='trak'
+```
+
+也會驗算主修 ＋ 每個額外身分的所有組合，確認合併後不會撞名。
+
+### 一份規則集要填什麼
+
+| 欄位 | 說明 |
+|---|---|
+| `id` | 全域唯一，慣例 `major.系名-入學年` |
+| `type` | `major` / `minor` / `doubleMajor` / `program` |
+| `totalCredits` | 這個身分要求的學分。多個身分會相加 |
+| `tags` | 標籤，一門課掛一個 |
+| `categories` | 大類 → 項目 bucket → 每個 bucket 吃哪些標籤 |
+| `subjectGroups` | 規定要修的科目清單 |
+| `options` | 學生要自選、且影響規則的東西（分組、學程） |
+
+各大類 `minCredits` 的總和要等於 `totalCredits`，檢查工具會幫你驗算。
+
+### 常見寫法
+
+**五選二**（至少修 2 門）
+
+```js
+{ id:'grp.pick', label:'物理相關課程（五選二）',
+  rule:{ type:'atLeastCourses', n:2 },
+  items:[ { name:'工程光學', credit:3, tag:'tag.physics' }, /* ... */ ] }
+```
+
+**核心必選 ＋ 選修若干門**（巢狀群組）
+
+```js
+{ id:'grp.track', label:'某某學程', groups:[
+  { id:'grp.track.core', label:'核心（全選）', rule:{ type:'all' }, items:[ /* ... */ ] },
+  { id:'grp.track.elec', label:'選修（2 門以上）', rule:{ type:'atLeastCourses', n:2 }, items:[ /* ... */ ] },
+]}
+```
+
+**只有選某組別才適用**
+
+```js
+when: { option:'group', equals:'a' }   // 需在 options 裡先定義 id:'group'
+```
+
+**課名有別名／可抵免**
+
+```js
+{ name:'程式設計', credit:3, tag:'tag.dept', aliases:['計算機程式設計','程式設計一'] }
+```
+
+**項目內的額外門數檢核**
+
+```js
+checks: [{ type:'minCoursesOfTag', tag:'tag.ge-core', min:4, label:'核心通識至少 4 門' }]
+```
+
+### 資料還沒核對完
+
+先填上這兩個欄位，畫面會顯示橘色提醒，避免別人誤以為數字已經確認過：
+
+```js
+dataStatus: 'unverified',
+dataNote: '課程資料尚未與系辦公告核對',
+```
+
+核對完刪掉即可。
+
+### 注意事項
+
+- **標籤 id 要夠獨特**。輔系會跟主修合併，撞名會被檢查工具擋下來，建議加系所代號（`tag.ee-dept`）。
+- **大類 id 想合併顯示才取同名**。所有額外身分的項目都用 `cat.identity`，就會一起收在「其他身分」底下。
+- **`minCredits` 是門檻不是上限**。修超過會照實顯示（例 9/6），不會被截掉。真要設上限才用 `cap`。
 
 ## 資料儲存
 
-**完全不保存，畫面上也沒有開關可以打開。** 每次開啟網站都是空白的，關掉或重新整理就會清空。排了課還沒匯出就要離開時，瀏覽器會跳出確認。
+**預設不保存。** 每次開啟網站都是空白的，關掉或重新整理就會清空。排了課還沒匯出就要離開時，瀏覽器會跳出確認。
 
-這是為了共用電腦的情境：下一個人打開網站不會看到前一個人排的課。開站時會主動清掉 localStorage 裡所有相關的鍵（包含舊版資料，以及先前版本那個自動保存旗標），所以曾經開過保存的瀏覽器也會被清乾淨。
+右上角的「自動保存（僅此瀏覽器）」勾選後，規劃會寫進 localStorage。要點：
 
-要保留規劃，用「匯出規劃」下載 JSON、用「匯入規劃」讀回來。沒有後端，檔案不會上傳到任何地方。
+- **只存在這個瀏覽器裡**，不會上傳。換裝置、換瀏覽器、開無痕視窗都看不到。
+- 別的使用者用自己的裝置開這個網站，看不到你的規劃——各自的 localStorage 完全獨立。
+- 唯一的例外是**共用電腦**：同一台機器、同一個瀏覽器設定檔，下一個人會看到。公用電腦用完記得取消勾選（會一併刪除已存的規劃）。
+- 開關狀態本身也會記住，勾選一次之後就一直保持。
 
-真要改回自動保存，`ui/store.js` 的 `PERSIST` 改成 `true`——但共用裝置上不建議。
+不管開關開或關，都可以用「匯出規劃」下載 JSON、用「匯入規劃」讀回來，這是跨裝置搬移的唯一方式。沒有後端，檔案不會上傳到任何地方。
 
 畫面右下角的版本標記（例 `v6`）用來確認瀏覽器載入的是不是最新檔案。更新後如果標記沒變，多半是快取，按 Ctrl+Shift+R 強制重新整理。
 

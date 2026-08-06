@@ -1,5 +1,6 @@
 /**
- * 驗證「完全不保存」：每次開站都是空白，且會清掉先前殘留的資料。
+ * 自動保存開關的跨工作階段測試。
+ * 每次用不同的 query 匯入 store.js = 模擬重新開啟網站。
  * 需要 jsdom：npm install jsdom --no-save
  */
 import { JSDOM } from '../node_modules/jsdom/lib/api.js';
@@ -13,41 +14,51 @@ const ck = (l, c, x = '') => { console.log(`  ${c ? '✓' : '✗'} ${l}${x ? ' �
 let n = 0;
 const openSite = async () => (await import(`${R}ui/store.js?session=${++n}`)).store;
 
-console.log('【模擬「曾經開過自動保存」的瀏覽器】');
-// 舊版留下的：排好的課 + 開關旗標
-shared.setItem('credit-planner/plan/v2', JSON.stringify({
-  majorId: 'major.dongji-114',
-  courses: [{ id: 'c1', name: '別人排的課', credit: 3, tag: 'tag.dept', semester: 'y1s1' }],
-}));
-shared.setItem('credit-planner/persist', 'on');
-shared.setItem('credit-planner/plan/v1', JSON.stringify({ rulesetId: 'dongji-113', courses: [] }));
-ck('前置：localStorage 確實有殘留資料', shared.length === 3, `${shared.length} 筆`);
-
+console.log('【第 1 次開站：預設關閉】');
 let s = await openSite();
-ck('開站後看不到別人的課', s.plan.courses.length === 0, `${s.plan.courses.length} 門`);
-ck('保存功能是關閉的', s.persistEnabled === false);
-ck('規劃資料已被清除', shared.getItem('credit-planner/plan/v2') === null);
-ck('舊版 v1 資料已被清除', shared.getItem('credit-planner/plan/v1') === null);
-ck('開關旗標也被清除（不會殘留成 on）', shared.getItem('credit-planner/persist') === null);
-ck('localStorage 完全乾淨', shared.length === 0, `剩 ${shared.length} 筆`);
+ck('自動保存預設關閉', s.persistEnabled === false);
+s.addCourse({ name: '測試課程A', credit: 3, tag: 'tag.dept' });
+ck('沒有寫進 localStorage', shared.getItem('credit-planner/plan/v2') === null);
 
-console.log('\n【使用中不會寫回 localStorage】');
-s.addCourse({ name: '我排的課', credit: 3, tag: 'tag.dept' });
-ck('課程加入成功', s.plan.courses.length === 1);
-ck('localStorage 仍然是空的', shared.length === 0, `${shared.length} 筆`);
-
-console.log('\n【重新開站】');
+console.log('\n【第 2 次開站：應該是空的】');
 s = await openSite();
-ck('又是空白的', s.plan.courses.length === 0);
+ck('課程被清空', s.plan.courses.length === 0, `${s.plan.courses.length} 門`);
 
-console.log('\n【匯出／匯入仍可帶走規劃】');
-s.addCourse({ name: '要帶走的課', credit: 3, tag: 'tag.dept' });
-const json = s.exportPlan();
-s.reset();
-ck('清空後沒有課', s.plan.courses.length === 0);
-s.importPlan(json);
-ck('匯入後課程回來', s.plan.courses.length === 1 && s.plan.courses[0].name === '要帶走的課');
-ck('匯入也不會寫進 localStorage', shared.length === 0);
+console.log('\n【打開自動保存】');
+s.setPersist(true);
+ck('開關已開啟', s.persistEnabled === true);
+s.addCourse({ name: '測試課程B', credit: 3, tag: 'tag.dept' });
+ck('規劃已寫進 localStorage', shared.getItem('credit-planner/plan/v2') !== null);
+
+console.log('\n【第 3 次開站：讀回資料】');
+s = await openSite();
+ck('開關記住了「開啟」', s.persistEnabled === true);
+ck('課程被讀回來', s.plan.courses.length === 1 && s.plan.courses[0].name === '測試課程B',
+  s.plan.courses.map((x) => x.name).join(',') || '空的');
+
+console.log('\n【關掉自動保存：一併清除已存的規劃】');
+s.setPersist(false);
+ck('已存的規劃被清除', shared.getItem('credit-planner/plan/v2') === null);
+ck('開關設定記為 off', shared.getItem('credit-planner/persist') === 'off');
+
+console.log('\n【第 4 次開站：又是空的】');
+s = await openSite();
+ck('回到空白且開關為關', s.plan.courses.length === 0 && s.persistEnabled === false);
+
+console.log('\n【B 使用者的瀏覽器：獨立的 localStorage】');
+// A 開了自動保存並存了課
+s = await openSite();
+s.setPersist(true);
+s.addCourse({ name: 'A使用者的課', credit: 3, tag: 'tag.dept' });
+ck('A 的資料已存在 A 的瀏覽器', shared.getItem('credit-planner/plan/v2') !== null);
+
+// B 用另一個瀏覽器打開（另一份完全獨立的 localStorage）
+const bStorage = new JSDOM('', { url: 'https://x.com/' }).window.localStorage;
+Object.defineProperty(globalThis, 'localStorage', { value: bStorage, configurable: true, writable: true });
+const sB = await openSite();
+ck('B 看不到 A 的課', sB.plan.courses.length === 0, `${sB.plan.courses.length} 門`);
+ck('B 的自動保存也是預設關閉', sB.persistEnabled === false);
+ck('A 的資料仍在 A 那邊，沒有互相影響', shared.getItem('credit-planner/plan/v2') !== null);
 
 console.log(pass ? '\n全部通過\n' : '\n有項目失敗\n');
 process.exitCode = pass ? 0 : 1;

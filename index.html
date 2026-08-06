@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" data-build="v7">
+<html lang="zh-Hant" data-build="v8">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,6 +41,10 @@
   </div>
 
   <div class="file-actions">
+    <label class="persist-toggle" title="規劃只會存在這個瀏覽器裡，不會上傳，換裝置或換瀏覽器看不到">
+      <input type="checkbox" id="persistToggle">
+      <span>自動保存<small>僅此瀏覽器</small></span>
+    </label>
     <button class="btn-ghost btn-small" id="exportBtn" type="button">匯出規劃</button>
     <button class="btn-ghost btn-small" id="importBtn" type="button">匯入規劃</button>
     <button class="btn-ghost btn-small" id="resetBtn" type="button">清空</button>

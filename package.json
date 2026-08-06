@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.mjs",
+    "check": "node tests/check-rulesets.mjs",
     "dev": "python3 -m http.server 8080"
   }
 }

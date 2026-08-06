@@ -51,10 +51,19 @@ check('動機系 114 → 應修 129', text('#ledgerTotal') === '129', text('#led
 check('判定分頁有兩個', $('#reportTabs').children.length === 2);
 check('版本標記有顯示', $('#buildStamp').textContent.trim().length > 0, $('#buildStamp').textContent);
 
-console.log('\n【不保存資料】');
-check('保存功能關閉', store.persistEnabled === false);
-check('畫面上沒有自動保存開關', $('#persistToggle') === null);
+console.log('\n【自動保存開關】');
+check('預設未打勾', store.persistEnabled === false && $('#persistToggle').checked === false);
+check('標示「僅此瀏覽器」', $('.persist-toggle').textContent.includes('僅此瀏覽器'));
 check('頁尾說明是「不會保存」', $('#persistNote').textContent.includes('不會保存'));
+const pToggle = $('#persistToggle');
+pToggle.checked = true;
+pToggle.dispatchEvent(new window.Event('change', { bubbles: true }));
+check('點一下就開啟', store.persistEnabled === true);
+check('頁尾說明改為「只儲存在這個瀏覽器中」',
+  $('#persistNote').textContent.includes('只儲存在這個瀏覽器中'));
+pToggle.checked = false;
+pToggle.dispatchEvent(new window.Event('change', { bubbles: true }));
+check('再點一下關閉', store.persistEnabled === false);
 
 console.log('\n【勾選輔系】');
 const qfBox = window.document.querySelector('input[data-identity="minor.qf"]');

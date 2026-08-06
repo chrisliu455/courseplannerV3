@@ -7,7 +7,7 @@
  */
 
 /** 版本標記：畫面右下角會顯示，用來確認瀏覽器跑的是不是最新檔案 */
-export const BUILD = 'v7';
+export const BUILD = 'v8';
 
 import { evaluate } from '../engine/index.js';
 import { store } from './store.js';
@@ -52,11 +52,13 @@ function renderHeader(report) {
   });
   setText('#majorSub', parts.join('　｜　'));
 
+  const toggle = $('#persistToggle');
+  if (toggle) toggle.checked = store.persistEnabled;
   setHTML(
     '#persistNote',
     store.persistEnabled
-      ? '規劃會自動存在這台裝置的瀏覽器裡，重新整理不會消失。'
-      : '<strong>這個頁面不會保存資料</strong>，關掉或重新整理就會清空。'
+      ? '規劃<strong>只儲存在這個瀏覽器中</strong>，不會上傳，換裝置或換瀏覽器就看不到。共用電腦請記得用完取消勾選。'
+      : '<strong>這個頁面不會保存資料</strong>，關掉或重新整理就會清空。勾選右上角「自動保存」可存在這個瀏覽器裡。'
   );
   setText('#ledgerTotal', num(t.target));
   setText('#ledgerPlanned', num(t.earned));
@@ -115,6 +117,14 @@ on('#importFile', 'change', (e) => {
   if (e.target.files[0]) importPlan(e.target.files[0]);
   e.target.value = '';
 });
+on('#persistToggle', 'change', (e) => {
+  store.setPersist(e.target.checked);
+  toast(
+    e.target.checked
+      ? '已開啟自動保存，規劃只會存在這個瀏覽器裡'
+      : '已關閉自動保存，並清除這個瀏覽器裡已存的規劃'
+  );
+});
 on('#tagEditorBtn', 'click', openTagEditor);
 on('#resetBtn', 'click', () => {
   if (confirm('會清空所有課程與設定，且無法復原。建議先匯出備份。確定清空？')) {
@@ -142,7 +152,7 @@ if (pageBuild !== BUILD || missing.length) {
   console.warn('[學程規劃表] 版本不一致：index.html=' + pageBuild + '、main.js=' + BUILD, missing);
 }
 
-/* 資料不會保存，排了課要關掉分頁前提醒一下 */
+/* 沒開自動保存又排了課，關掉分頁前提醒一下 */
 window.addEventListener('beforeunload', (e) => {
   if (store.persistEnabled || !store.plan.courses.length) return;
   e.preventDefault();

@@ -35,8 +35,8 @@ const b = await boot(fresh, 'b');
 ck('沒有錯誤', b.errs.length === 0, b.errs.join(' / '));
 ck('不顯示版本不一致提示',
   ![...b.dom.window.document.querySelectorAll('div')].some(d => d.textContent.includes('檔案版本不一致')));
-ck('沒有自動保存開關', b.$('#persistToggle') === null);
-ck('版本標記顯示 v7', b.$('#buildStamp').textContent.trim() === 'v7', b.$('#buildStamp').textContent);
+ck('自動保存開關存在', b.$('#persistToggle') !== null);
+ck('版本標記顯示 v8', b.$('#buildStamp').textContent.trim() === 'v8', b.$('#buildStamp').textContent);
 
 console.log(pass ? '\n全部通過\n' : '\n有項目失敗\n');
 process.exitCode = pass ? 0 : 1;

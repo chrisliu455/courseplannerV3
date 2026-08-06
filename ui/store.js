@@ -7,36 +7,42 @@
  * plan.majorId ＋ plan.identityIds ＋ plan.customIdentities 決定要合併哪些身分模組，
  * store.ruleset 就是合併後的結果，畢業學分要求由這些身分相加而來。
  *
- * ── 不保存任何資料 ──────────────────────────
- * 每次開啟網站都是空白的，關掉分頁資料就不見，畫面上也沒有開關可以打開。
- * 這是刻意的：共用電腦時，下一個人打開網站不會看到前一個人排的課。
- * 要保留規劃請用「匯出規劃」下載 JSON，下次「匯入規劃」讀回來。
+ * ── 自動保存 ────────────────────────────────
+ * 預設關閉，每次開站都是空白的。畫面右上角可以打開。
  *
- * 開站時會主動清掉 localStorage 裡所有相關的鍵，包含舊版留下的，
- * 所以先前曾經開啟過自動保存的瀏覽器也會被一併清乾淨。
+ * 打開後規劃會寫進 localStorage。localStorage 綁在「這個瀏覽器」上，
+ * 不會上傳、不會跨裝置、不會被別人的瀏覽器讀到。
+ * 唯一要注意的是共用電腦：同一台機器同一個瀏覽器設定檔，下一個人會看到。
  *
- * 真要改回自動保存，把下面的 PERSIST 改成 true——但共用裝置上請不要這樣做。
+ * 開關狀態本身也記在 localStorage，所以打開過一次就會一直保持。
  */
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
 import { mergeModules, customModule } from '../engine/index.js';
 
-const PERSIST = false; // 不保存。共用裝置上請維持 false
-
 const STORAGE_KEY = 'credit-planner/plan/v2';
+const LEGACY_PLAN_KEYS = ['credit-planner/plan/v1'];
 const PERSIST_KEY = 'credit-planner/persist';
-const LEGACY_KEYS = ['credit-planner/plan/v1', PERSIST_KEY];
 
 const PLAN_VERSION = 2;
 
-const persist = PERSIST;
+/** 自動保存是否開啟。預設關閉，使用者可在畫面上打開。 */
+let persist = readPersistFlag();
 
-/** 清掉這個網站在 localStorage 裡的所有痕跡，包含舊版與舊的開關設定 */
-function clearStored() {
+function readPersistFlag() {
   try {
-    [STORAGE_KEY, ...LEGACY_KEYS].forEach((k) => localStorage.removeItem(k));
+    return localStorage.getItem(PERSIST_KEY) === 'on';
   } catch {
-    /* 無痕模式讀不到 localStorage，忽略 */
+    return false; // 無痕模式讀不到 localStorage，一律當作關閉
+  }
+}
+
+/** 清掉存下來的規劃（不動開關本身的設定） */
+function clearStoredPlan() {
+  try {
+    [STORAGE_KEY, ...LEGACY_PLAN_KEYS].forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* 讀不到就算了 */
   }
 }
 
@@ -61,11 +67,11 @@ const listeners = new Set();
 function load() {
   if (!persist) {
     // 沒開保存就順手清掉殘留資料，避免舊規劃陰魂不散
-    clearStored();
+    clearStoredPlan();
     return emptyPlan();
   }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_KEYS[0]);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_PLAN_KEYS[0]);
     if (!raw) return emptyPlan();
     return migrate(JSON.parse(raw));
   } catch {
@@ -139,8 +145,20 @@ export const store = {
   get modules() {
     return activeModules();
   },
+  /* 自動保存開關 */
   get persistEnabled() {
     return persist;
+  },
+  setPersist(on) {
+    persist = Boolean(on);
+    try {
+      localStorage.setItem(PERSIST_KEY, persist ? 'on' : 'off');
+    } catch {
+      /* 無痕模式：這次切換仍有效，下次開站會回到預設的關閉 */
+    }
+    if (persist) save();
+    else clearStoredPlan(); // 關掉時把已存的規劃一併刪除，不留痕跡
+    commit();
   },
 
   subscribe(fn) {
