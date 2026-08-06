@@ -26,9 +26,9 @@ test('規則集本身沒有結構錯誤', () => {
   assert.deepEqual(issues.filter((i) => i.level === 'error'), []);
 });
 
-test('主修的 8 個標籤全部有對應到項目與大類', () => {
+test('主修的 11 個標籤全部有對應到項目與大類', () => {
   const table = tagTable(plan([]), ruleset);
-  assert.equal(table.length, 8);
+  assert.equal(table.length, 11); // 含核心通識向度一～四
   table.forEach((t) => {
     assert.ok(t.bucketId, `${t.label} 沒有對應項目`);
     assert.ok(t.categoryId, `${t.label} 沒有對應大類`);
@@ -41,7 +41,7 @@ test('學分依標籤累加到正確的大類', () => {
       course('大學中文', 2, 'tag.chinese'),
       course('英文一', 2, 'tag.english'),
       course('微積分一', 3, 'tag.dept'),
-      course('哲學概論', 3, 'tag.ge-core'),
+      course('哲學概論', 3, 'tag.ge-core-1'),
     ]),
     ruleset
   );
@@ -215,15 +215,56 @@ test('科目判定仍會打勾，但標記出學分落到別處', () => {
   assert.equal(trackItem.tagMismatch, true, '但標籤不是專業學程，要標記出來');
 });
 
-test('核心通識未滿 4 門時通識項目不算達標', () => {
+test('通識學分夠但沒修核心，不算達標', () => {
   const courses = [];
   for (let i = 0; i < 7; i++) courses.push(course(`通識${i}`, 3, 'tag.ge-general'));
   const r = evaluate(plan(courses), ruleset); // 21 學分但 0 門核心
   const ge = findBucket(r, 'bkt.ge');
   assert.ok(ge.earned >= 20);
-  assert.equal(ge.met, false, '學分夠但核心通識門數不足，應判定未達標');
-  assert.equal(ge.checks[0].have, 0);
-  assert.equal(ge.checks[0].need, 4);
+  assert.equal(ge.met, false, '學分夠但核心通識不足，應判定未達標');
+  const dim = ge.checks.find((k) => k.label.includes('向度'));
+  assert.equal(dim.have, 0);
+  assert.equal(dim.need, 4);
+});
+
+test('核心通識四個向度：修滿四門但集中在同一向度不算達標', () => {
+  const same = [];
+  for (let i = 1; i <= 4; i++) same.push(course(`向度一課程${i}`, 3, 'tag.ge-core-1'));
+  for (let i = 1; i <= 4; i++) same.push(course(`一般通識${i}`, 2, 'tag.ge-general'));
+  const r = evaluate(plan(same), ruleset);
+  const ge = findBucket(r, 'bkt.ge');
+  const dim = ge.checks.find((k) => k.label.includes('向度'));
+  assert.equal(ge.earned, 20, '學分是滿的');
+  assert.equal(dim.have, 1, '只涵蓋 1 個向度');
+  assert.equal(dim.ok, false);
+  assert.equal(ge.met, false);
+});
+
+test('核心通識四個向度：各修一門就達標', () => {
+  const spread = [];
+  for (let i = 1; i <= 4; i++) spread.push(course(`向度${i}課程`, 3, `tag.ge-core-${i}`));
+  for (let i = 1; i <= 4; i++) spread.push(course(`一般通識${i}`, 2, 'tag.ge-general'));
+  const r = evaluate(plan(spread), ruleset);
+  const ge = findBucket(r, 'bkt.ge');
+  const dim = ge.checks.find((k) => k.label.includes('向度'));
+  assert.equal(dim.have, 4);
+  assert.equal(dim.ok, true);
+  assert.equal(ge.earned, 20);
+  assert.equal(ge.met, true);
+});
+
+test('核心通識學分跨四個向度合計', () => {
+  const r = evaluate(
+    plan([
+      course('向度一課程', 3, 'tag.ge-core-1'),
+      course('向度二課程', 3, 'tag.ge-core-2'),
+      course('向度三課程', 2, 'tag.ge-core-3'),
+    ]),
+    ruleset
+  );
+  const core = findBucket(r, 'bkt.ge').checks.find((k) => k.label.includes('至少 8 學分'));
+  assert.equal(core.have, 8, '三個向度的學分要加總，不是各算各的');
+  assert.equal(core.ok, true);
 });
 
 test('身分別決定畢業學分：主修 129', () => {
@@ -239,8 +280,8 @@ test('身分別決定畢業學分：主修 129 ＋ 輔系 20 ＝ 149', () => {
 });
 
 test('加了輔系才有輔系標籤與項目', () => {
-  assert.equal(tagTable(plan([]), ruleset).length, 8);
-  assert.equal(tagTable(plan([]), withMinor).length, 9);
+  assert.equal(tagTable(plan([]), ruleset).length, 11);
+  assert.equal(tagTable(plan([]), withMinor).length, 12);
   assert.ok(!ruleset.categories.some((c) => c.id === 'cat.identity'));
   assert.ok(withMinor.categories.some((c) => c.id === 'cat.identity'));
 });
@@ -398,7 +439,7 @@ test('全部修滿時判定畢業達標', () => {
     .items.forEach((i) => add(i.name, i.credit, i.tag));
   add('工程光學', 3, 'tag.physics');
   add('電磁學', 3, 'tag.physics');
-  for (let i = 0; i < 4; i++) add(`核心通識${i}`, 3, 'tag.ge-core');
+  for (let i = 1; i <= 4; i++) add(`核心通識${i}`, 3, `tag.ge-core-${i}`);
   for (let i = 0; i < 3; i++) add(`一般通識${i}`, 3, 'tag.ge-general');
   ['控制系統一', '控制系統二', '電子學二', '振動學', '數值分析'].forEach((n) =>
     add(n, 3, 'tag.track')
@@ -429,6 +470,14 @@ test('同名課程排兩次會被抓出來', () => {
   assert.equal(r.credit.exceptions.duplicates[0].name, '工程光學');
   assert.equal(r.credit.exceptions.duplicates[0].count, 2);
   assert.deepEqual(r.credit.exceptions.duplicates[0].tags, ['tag.physics', 'tag.track']);
+});
+
+test('0 學分課沒有標籤也不會被列為未設標籤', () => {
+  const zero = course('體育', 0, null);
+  const real = course('不知道算什麼', 3, null);
+  const r = evaluate(plan([zero, real]), ruleset);
+  assert.equal(r.credit.exceptions.untagged.length, 1, '只有 3 學分那門該被提醒');
+  assert.equal(r.credit.exceptions.untagged[0].name, '不知道算什麼');
 });
 
 test('沒有重複時 duplicates 是空的', () => {

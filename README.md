@@ -47,6 +47,7 @@ engine/                 判定引擎（純函式，可在 Node 執行）
 rulesets/               身分模組（純資料，沒有程式邏輯）
   major.dongji-114.js     主修：動機系 114 學年（預設，資料待核對）
   major.dongji-113.js     主修：動機系 113 學年（129 學分）
+  major.ee-114.js         主修：電機系 114 學年（128 學分）
   minor.qf.js             輔系：計財系（＋20 學分）
   index.js                註冊表
 
@@ -159,6 +160,8 @@ const report = evaluate(plan, ruleset);
 | 專業學程 | 專業學程 |
 | 其他選修 | 主修選修 |
 | 其他身分 | 各身分模組帶進來的標籤（輔系、雙主修、學分學程⋯⋯） |
+
+核心通識拆成「向度一～向度四」四個標籤，修課時要選對向度，引擎才判定得出「四個不同向度各至少一門」。
 
 一門課只有一個標籤，所以沒有「一門課該算哪一類」的競合問題。需要處理的只有**額滿**：
 
@@ -273,11 +276,20 @@ when: { option:'group', equals:'a' }   // 需在 options 裡先定義 id:'group'
 { name:'程式設計', credit:3, tag:'tag.dept', aliases:['計算機程式設計','程式設計一'] }
 ```
 
-**項目內的額外門數檢核**
+**項目內的額外檢核**
+
+四種規則，範圍可用 `tag`（單一標籤）或 `tags`（多個標籤合計）：
 
 ```js
-checks: [{ type:'minCoursesOfTag', tag:'tag.ge-core', min:4, label:'核心通識至少 4 門' }]
+checks: [
+  { type:'minCourses',      min:3,                          label:'至少 3 門' },
+  { type:'minCoursesOfTag', tag:'tag.ge-core-1', min:1,     label:'向度一至少 1 門' },
+  { type:'minCreditsOfTag', tags:['a','b'],      min:8,     label:'合計至少 8 學分' },
+  { type:'minDistinctTags', tags:['d1','d2','d3','d4'], min:4, label:'四個向度各至少 1 門' },
+]
 ```
+
+`minDistinctTags` 看的是「涵蓋幾個不同標籤」而不是修幾門，用來表達「四個不同核心向度各至少一門」這種規定——修四門但全擠在同一向度不算數。
 
 ### 資料還沒核對完
 

@@ -47,12 +47,13 @@ export function evaluateCredits(plan, ruleset, index) {
   courses.forEach((c) => {
     allocationsOf.set(c.id, []);
     const credit = toNumber(c.credit);
+    // 0 學分課（體育、操行、學習護照）只走科目判定，沒有標籤也不必提醒
+    if (credit <= 0) return;
     if (!c.tag) return untagged.push(c);
     const bucketId = index.bucketOfTag.get(c.tag);
     if (!bucketId) return unmapped.push(c);
     const bucket = index.bucketById.get(bucketId);
     if (!bucket.active) return inactive.push(c);
-    if (credit <= 0) return; // 0 學分課（體育、操行）只走科目判定
     inbox.get(bucketId).push({ course: c, credit, from: null });
   });
 
@@ -188,20 +189,38 @@ export function evaluateCredits(plan, ruleset, index) {
   };
 }
 
-/** 項目層級的附加檢核，例如「核心通識至少 4 門」「四向度各至少一門」。 */
+/**
+ * 項目層級的附加檢核。
+ *
+ * 每種規則都可以用 tag（單一標籤）或 tags（多個標籤合計）指定範圍：
+ *   { type:'minCourses',      min:3 }                          本項至少 3 門
+ *   { type:'minCoursesOfTag', tag:'tag.ge-core-1', min:1 }      指定標籤至少 1 門
+ *   { type:'minCreditsOfTag', tags:['a','b'],      min:8 }      這幾個標籤合計至少 8 學分
+ *   { type:'minDistinctTags', tags:[...],          min:4 }      這組標籤中，至少 4 個各有課
+ *
+ * minDistinctTags 是為了「四個不同核心向度各至少一門」這種規定：
+ * 重點不是修幾門，而是分布在幾個不同的類別上。
+ */
 function runBucketChecks(bucket, rows, allCourses) {
   return (bucket.checks || []).map((rule) => {
+    const scope = rule.tags || (rule.tag ? [rule.tag] : []);
+    const inScope = rows.filter((r) => scope.includes(r.tag));
+
     if (rule.type === 'minCourses') {
       const have = rows.length;
       return { label: rule.label, ok: have >= rule.min, have, need: rule.min, unit: '門' };
     }
     if (rule.type === 'minCoursesOfTag') {
-      const have = rows.filter((r) => r.tag === rule.tag).length;
+      const have = inScope.length;
       return { label: rule.label, ok: have >= rule.min, have, need: rule.min, unit: '門' };
     }
     if (rule.type === 'minCreditsOfTag') {
-      const have = round2(rows.filter((r) => r.tag === rule.tag).reduce((s, r) => s + r.counted, 0));
+      const have = round2(inScope.reduce((s, r) => s + r.counted, 0));
       return { label: rule.label, ok: have >= rule.min, have, need: rule.min, unit: '學分' };
+    }
+    if (rule.type === 'minDistinctTags') {
+      const have = scope.filter((t) => rows.some((r) => r.tag === t)).length;
+      return { label: rule.label, ok: have >= rule.min, have, need: rule.min, unit: '類' };
     }
     return { label: rule.label || '未知規則', ok: true, have: 0, need: 0, unit: '' };
   });

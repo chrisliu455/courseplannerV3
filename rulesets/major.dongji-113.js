@@ -43,8 +43,11 @@ export default {
   tags: [
     { id: 'tag.chinese', label: '大學中文', color: '#9C5B3C' },
     { id: 'tag.english', label: '英文領域', color: '#C08457' },
-    { id: 'tag.ge-core', label: '核心通識', color: '#3B5170' },
-    { id: 'tag.ge-general', label: '一般通識', color: '#6A7E9B' },
+    { id: 'tag.ge-core-1', label: '核心通識・向度一', color: '#2F4858' },
+    { id: 'tag.ge-core-2', label: '核心通識・向度二', color: '#3B5170' },
+    { id: 'tag.ge-core-3', label: '核心通識・向度三', color: '#4E6E93' },
+    { id: 'tag.ge-core-4', label: '核心通識・向度四', color: '#6389B5' },
+    { id: 'tag.ge-general', label: '一般通識', color: '#8A94A8' },
     { id: 'tag.dept', label: '系定必修', color: '#7A2E2E' },
     { id: 'tag.physics', label: '物理領域', color: '#9E4B45' },
     { id: 'tag.track', label: '專業學程', color: '#4A6FA1' },
@@ -70,10 +73,25 @@ export default {
         {
           id: 'bkt.ge',
           label: '通識',
-          tags: ['tag.ge-core', 'tag.ge-general'],
+          tags: ['tag.ge-core-1', 'tag.ge-core-2', 'tag.ge-core-3', 'tag.ge-core-4', 'tag.ge-general'],
+
           minCredits: 20,
           note: '核心通識 8–12 學分＋一般通識 8–12 學分',
-          checks: [{ type: 'minCoursesOfTag', tag: 'tag.ge-core', min: 4, label: '核心通識至少 4 門' }],
+          checks: [
+            {
+              type: 'minDistinctTags',
+              tags: ['tag.ge-core-1', 'tag.ge-core-2', 'tag.ge-core-3', 'tag.ge-core-4'],
+              min: 4,
+              label: '四個核心向度各至少 1 門',
+            },
+            {
+              type: 'minCreditsOfTag',
+              tags: ['tag.ge-core-1', 'tag.ge-core-2', 'tag.ge-core-3', 'tag.ge-core-4'],
+              min: 8,
+              label: '核心通識至少 8 學分',
+            },
+            { type: 'minCreditsOfTag', tag: 'tag.ge-general', min: 8, label: '一般通識至少 8 學分' },
+          ],
         },
       ],
     },

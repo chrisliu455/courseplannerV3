@@ -38,7 +38,7 @@ const check = (label, cond, extra = '') => {
 };
 
 console.log('\n【啟動】');
-check('主修單選清單有渲染', window.document.querySelectorAll('input[name=majorPick]').length === 2,
+check('主修單選清單有渲染', window.document.querySelectorAll('input[name=majorPick]').length === 3,
   String(window.document.querySelectorAll('input[name=majorPick]').length) + ' 個主修');
 check('額外身分勾選框有渲染', window.document.querySelectorAll('input[data-identity]').length >= 1);
 check('預設勾選動機系 114',
@@ -122,7 +122,7 @@ console.log('\n【標籤設定視窗】');
 const { openTagEditor } = await load('ui/views/tags.js');
 openTagEditor();
 check('視窗開啟', $('.overlay') !== null);
-check('列出 9 個標籤（主修 8 ＋ 輔系 1）', window.document.querySelectorAll('.tag-table tbody tr').length === 9,
+check('列出 12 個標籤（主修 11 ＋ 輔系 1）', window.document.querySelectorAll('.tag-table tbody tr').length === 12,
   String(window.document.querySelectorAll('.tag-table tbody tr').length));
 $('#tagClose').click();
 check('視窗關閉', $('.overlay') === null);
