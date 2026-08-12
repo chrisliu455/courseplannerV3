@@ -147,8 +147,9 @@ if (pageBuild !== BUILD || missing.length) {
     `<div style="font:13px/1.7 system-ui;background:#FBF0E4;border:2px solid #B08D3F;
       padding:14px 18px;margin:14px;border-radius:3px;color:#1E2A38">
       <strong style="font-size:14px">檔案版本不一致</strong><br>
-      ${detail}請把整包檔案一起重新上傳（尤其是 <code>index.html</code> 和 <code>assets/app.css</code>），
-      然後按 Ctrl+Shift+R 強制重新整理。部分功能在修好之前無法使用。
+      ${detail}多半是瀏覽器還留著舊檔案，先按 <b>Ctrl+Shift+R</b>（Mac 是 Cmd+Shift+R）強制重新整理。
+      重整後還在，才是檔案真的沒上傳齊全 —— 請把整包一起重新上傳（尤其是
+      <code>index.html</code> 和 <code>assets/app.css</code>）。部分功能在修好之前無法使用。
     </div>`
   );
   console.warn('[學程規劃表] 版本不一致：index.html=' + pageBuild + '、main.js=' + BUILD, missing);

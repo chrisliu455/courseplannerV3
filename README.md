@@ -55,6 +55,9 @@ ui/                     介面層（不做任何計算）
   main.js                 串接 store、引擎、各 view
   store.js                狀態、localStorage、匯入匯出
   views/                  setup / pool / grid / report / tags
+
+tools/
+  bump-build.mjs          產生版號與快取破壞用的 importmap
 ```
 
 **依賴方向是單向的**：`ui/ → engine/ → rulesets/`。引擎不知道 UI 存在。
@@ -200,9 +203,29 @@ const report = evaluate(plan, ruleset);
 
 ## 檔案更新注意事項
 
-`index.html` 的 `data-build` 屬性與 `ui/main.js` 的 `BUILD` 常數必須一致。改動涉及新 DOM 元素時，兩邊要一起改版號，並且**整包檔案一起上傳**。
+`index.html` 的 `data-build` 屬性與 `ui/main.js` 的 `BUILD` 常數必須一致。**不要手動改這兩個地方**，改版時跑：
 
-版號對不上時，畫面最上方會直接指出哪個檔案是舊的，其餘功能仍可運作，不會整頁掛掉。頁尾右下角也會顯示目前載入的版號。
+```
+npm run release      # 版號 +1，並同步 index.html 與 importmap
+```
+
+只改了 HTML 骨架、沒有要換版號時跑 `npm run build` 重新同步即可。
+
+### 為什麼要有 importmap
+
+瀏覽器是**逐檔**快取的。GitHub Pages 對每個檔案都送 `Cache-Control: max-age=600`，
+所以 `index.html` 過期重抓、`ui/main.js` 卻還在快取裡的情況完全可能發生 ——
+這時檔案明明都是對的，畫面卻會跳「檔案版本不一致」。
+
+解法是把版號寫進網址：`index.html` 用 `?v=N` 載入 `app.css` 與 `ui/main.js`，
+其餘模組則由 `<head>` 裡的 `importmap` 統一改寫成帶版號的網址。
+版號一換，所有網址就全部改變，瀏覽器不可能拿舊檔案配新檔案。
+模組之間的 `import` 路徑維持乾淨，不用逐檔加 `?v=`。
+
+`index.html` 裡 `cache-bust:start` / `cache-bust:end` 之間那段是產生出來的，改了會被覆蓋。
+新增 `ui/`、`engine/`、`rulesets/` 底下的模組後，記得跑一次 `npm run build` 把它收進 importmap。
+
+版號真的對不上時，畫面最上方會直接指出哪個檔案是舊的，其餘功能仍可運作，不會整頁掛掉。頁尾右下角也會顯示目前載入的版號。
 
 ## 新增一個系所或輔系
 
