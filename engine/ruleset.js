@@ -30,10 +30,20 @@ export function toNumber(v) {
  *   when: { option:'track', equals:'control' }
  *   when: { option:'minor', in:['qf','stat'] }
  *   when: { option:'minor', truthy:true }
+ *
+ * 需要「同時滿足兩個選項」時用 allOf（例：科管院其餘選修的學分，
+ * 同時取決於第一專長與第二專長選了什麼）：
+ *   when: { allOf:[ { option:'major1', equals:'qf' }, { option:'major2', equals:'ee' } ] }
  */
 export function isActive(node, options = {}) {
   const w = node && node.when;
   if (!w) return true;
+  return matchWhen(w, options);
+}
+
+function matchWhen(w, options) {
+  if (!w) return true;
+  if (Array.isArray(w.allOf)) return w.allOf.every((sub) => matchWhen(sub, options));
   const v = options[w.option];
   if ('equals' in w) return v === w.equals;
   if ('in' in w) return Array.isArray(w.in) && w.in.includes(v);
@@ -58,20 +68,22 @@ export function applyTagEdits(ruleset, edits = {}) {
     if (!tags.some((t) => t.id === c.id)) tags.push({ id: c.id, label: c.label, color: c.color });
   });
 
-  // 先算出每個標籤最終該落在哪個項目
-  const target = new Map();
-  ruleset.categories.forEach((cat) =>
-    cat.buckets.forEach((b) => (b.tags || []).forEach((tid) => target.set(tid, b.id)))
-  );
-  custom.forEach((c) => c.bucket && target.set(c.id, c.bucket));
-  Object.entries(moves).forEach(([tid, bid]) => target.set(tid, bid));
+  // 只動「被搬家的標籤」，其餘維持規則集原本的歸屬。
+  // 不能整個重算，因為互斥的項目（例：第一專長四擇一）會共用同一個標籤，
+  // 重算會讓標籤只剩最後一個項目擁有，其他三個變成空的。
+  const moveTo = new Map();
+  custom.forEach((c) => c.bucket && moveTo.set(c.id, c.bucket));
+  Object.entries(moves).forEach(([tid, bid]) => moveTo.set(tid, bid));
 
   const categories = ruleset.categories.map((cat) => ({
     ...cat,
-    buckets: cat.buckets.map((b) => ({
-      ...b,
-      tags: tags.filter((t) => target.get(t.id) === b.id).map((t) => t.id),
-    })),
+    buckets: cat.buckets.map((b) => {
+      const kept = (b.tags || []).filter((tid) => !moveTo.has(tid) || moveTo.get(tid) === b.id);
+      const moved = [...moveTo.entries()]
+        .filter(([tid, bid]) => bid === b.id && !kept.includes(tid))
+        .map(([tid]) => tid);
+      return { ...b, tags: [...kept, ...moved] };
+    }),
   }));
 
   return { ...ruleset, tags, categories };
@@ -95,7 +107,12 @@ export function buildIndex(ruleset, options = {}) {
       };
       bucketById.set(b.id, entry);
       bucketOrder.push(b.id);
-      (b.tags || []).forEach((tid) => bucketOfTag.set(tid, b.id));
+      (b.tags || []).forEach((tid) => {
+        // 互斥的項目（例：第一專長四擇一）共用同一個標籤時，
+        // 要指到目前啟用的那一個，課才不會被算進沒選的專長裡。
+        const prev = bucketOfTag.get(tid);
+        if (!prev || (entry.active && !bucketById.get(prev).active)) bucketOfTag.set(tid, b.id);
+      });
     });
   });
 
@@ -118,6 +135,8 @@ export function validateRuleset(ruleset) {
     seenTag.add(t.id);
   });
 
+  const combos = optionCombos(ruleset);
+
   const seenBucket = new Set();
   const mapped = new Map();
   ruleset.categories.forEach((cat) => {
@@ -126,10 +145,27 @@ export function validateRuleset(ruleset) {
       seenBucket.add(b.id);
       (b.tags || []).forEach((tid) => {
         if (!seenTag.has(tid)) push('error', `項目「${b.label}」引用了不存在的標籤：${tid}`);
-        if (mapped.has(tid)) {
-          push('error', `標籤「${tid}」同時屬於「${mapped.get(tid)}」與「${b.label}」，一個標籤只能歸一個項目`);
-        }
         mapped.set(tid, b.label);
+      });
+    });
+  });
+
+  // 一個標籤只能歸一個項目。互斥的項目（第一專長四擇一）可以共用同一個標籤，
+  // 所以逐一套用每種選項組合，只有「同時啟用」才算撞在一起。
+  const clashed = new Set();
+  combos.forEach((combo) => {
+    const owner = new Map();
+    ruleset.categories.forEach((cat) => {
+      if (!isActive(cat, combo)) return;
+      (cat.buckets || []).forEach((b) => {
+        if (!isActive(b, combo)) return;
+        (b.tags || []).forEach((tid) => {
+          if (!owner.has(tid)) return owner.set(tid, b.label);
+          const msg = `標籤「${tid}」同時屬於「${owner.get(tid)}」與「${b.label}」，一個標籤只能歸一個項目`;
+          if (clashed.has(msg)) return;
+          clashed.add(msg);
+          push('error', msg);
+        });
       });
     });
   });
@@ -149,31 +185,83 @@ export function validateRuleset(ruleset) {
     })
   );
 
-  // 新增科系時最容易算錯的地方：各大類加起來要等於畢業總學分
+  // 新增科系時最容易算錯的地方：各大類加起來要等於畢業總學分。
+  // 有 when 的大類／項目是互斥的（例：第一專長四擇一），
+  // 所以要逐一套用每種選項組合來算，不能把互斥的區塊全部相加。
   if (ruleset.totalCredits != null) {
-    const sum = ruleset.categories
-      .filter((cat) => cat.countsTowardTotal !== false)
-      .reduce((s, cat) => {
-        if (cat.minCredits != null) return s + Number(cat.minCredits);
-        return s + (cat.buckets || []).reduce((x, b) => x + (Number(b.minCredits) || 0), 0);
-      }, 0);
-    if (sum !== Number(ruleset.totalCredits)) {
-      push(
-        'warn',
+    const seen = new Set();
+    combos.forEach((combo) => {
+      const sum = sumCategories(ruleset, combo);
+      if (sum === Number(ruleset.totalCredits)) return;
+      const where = describeCombo(ruleset, combo);
+      const msg =
+        (where ? `選「${where}」時，` : '') +
         `各大類應修學分加總為 ${sum}，與畢業總學分 ${ruleset.totalCredits} 不符。` +
-          `修滿每一類仍可能達不到（或超過）畢業門檻，請檢查數字。`
-      );
-    }
+        `修滿每一類仍可能達不到（或超過）畢業門檻，請檢查數字。`;
+      if (seen.has(msg)) return;
+      seen.add(msg);
+      push('warn', msg);
+    });
   }
 
   // 大類自己的 minCredits 也要跟底下項目對得起來
+  const seenCat = new Set();
   ruleset.categories.forEach((cat) => {
     if (cat.minCredits == null) return;
-    const inner = (cat.buckets || []).reduce((s, b) => s + (Number(b.minCredits) || 0), 0);
-    if (inner > Number(cat.minCredits)) {
-      push('warn', `「${cat.label}」底下各項目加總 ${inner}，超過該大類的應修學分 ${cat.minCredits}`);
-    }
+    combos.forEach((combo) => {
+      if (!isActive(cat, combo)) return;
+      const inner = sumBuckets(cat, combo);
+      if (inner <= Number(cat.minCredits)) return;
+      const msg = `「${cat.label}」底下各項目加總 ${inner}，超過該大類的應修學分 ${cat.minCredits}`;
+      if (seenCat.has(msg)) return;
+      seenCat.add(msg);
+      push('warn', msg);
+    });
   });
 
   return issues;
+}
+
+/** 啟用中的大類，應修學分加總（大類沒寫 minCredits 就用底下項目加總）。 */
+export function sumCategories(ruleset, options = {}) {
+  return (ruleset.categories || [])
+    .filter((cat) => cat.countsTowardTotal !== false && isActive(cat, options))
+    .reduce((s, cat) => {
+      if (cat.minCredits != null) return s + Number(cat.minCredits);
+      return s + sumBuckets(cat, options);
+    }, 0);
+}
+
+/** 一個大類底下，啟用中的項目應修學分加總。 */
+export function sumBuckets(cat, options = {}) {
+  return (cat.buckets || [])
+    .filter((b) => isActive(b, options))
+    .reduce((s, b) => s + (Number(b.minCredits) || 0), 0);
+}
+
+/**
+ * 列出所有「每個選項都選了值」的組合，用來驗算互斥規則。
+ * 空值（— 尚未選擇 —）不列入：還沒選專長時本來就算不出畢業學分。
+ * 組合數超過 limit 就放棄逐一驗算（只驗一種空組合），避免規則集選項一多就卡住。
+ */
+export function optionCombos(ruleset, limit = 64) {
+  let combos = [{}];
+  for (const opt of ruleset.options || []) {
+    const values = (opt.choices || []).map((c) => c.value).filter((v) => v !== '' && v != null);
+    if (!values.length) continue;
+    if (combos.length * values.length > limit) return [{}];
+    combos = combos.flatMap((base) => values.map((v) => ({ ...base, [opt.id]: v })));
+  }
+  return combos;
+}
+
+/** 把一組選項值講成人話：「第一專長＝計財專長、第二專長＝電機工程」 */
+function describeCombo(ruleset, combo) {
+  return (ruleset.options || [])
+    .filter((opt) => opt.id in combo)
+    .map((opt) => {
+      const ch = (opt.choices || []).find((c) => c.value === combo[opt.id]);
+      return `${opt.label}＝${ch ? ch.label : combo[opt.id]}`;
+    })
+    .join('、');
 }

@@ -12,7 +12,15 @@
  * 不需要 jsdom，純 Node 就能跑。
  */
 
-import { validateRuleset, mergeModules, buildIndex } from '../engine/index.js';
+import {
+  validateRuleset,
+  mergeModules,
+  buildIndex,
+  isActive,
+  optionCombos,
+  sumCategories,
+  sumBuckets,
+} from '../engine/index.js';
 import { MAJORS, IDENTITIES } from '../rulesets/index.js';
 
 let problems = 0;
@@ -32,30 +40,41 @@ function checkModule(mod) {
   issues.filter((i) => i.level === 'warn').forEach((i) => say('  ⚠ ' + i.message));
   if (!issues.some((i) => i.level === 'error')) ok('結構無誤');
 
-  // 2. 學分算術
-  const sum = (mod.categories || [])
-    .filter((c) => c.countsTowardTotal !== false)
-    .reduce((s, cat) => {
-      const target =
-        cat.minCredits != null
-          ? Number(cat.minCredits)
-          : cat.buckets.reduce((n, b) => n + (Number(b.minCredits) || 0), 0);
-      return s + target;
-    }, 0);
-
-  if (sum !== Number(mod.totalCredits)) {
-    bad(`學分對不上：各大類加總 ${sum}，但 totalCredits 寫 ${mod.totalCredits}（差 ${sum - mod.totalCredits}）`);
-  } else {
-    ok(`學分加總正確：${sum}`);
+  // 2. 學分算術。有 when 的大類／項目是互斥的（第一專長四擇一），
+  //    所以每種選項組合各驗一次，不能把互斥的區塊全部相加。
+  const combos = optionCombos(mod);
+  let sumOk = true;
+  combos.forEach((combo) => {
+    const sum = sumCategories(mod, combo);
+    if (sum === Number(mod.totalCredits)) return;
+    sumOk = false;
+    const where = comboLabel(mod, combo);
+    bad(
+      `學分對不上${where ? `（${where}）` : ''}：各大類加總 ${sum}，` +
+        `但 totalCredits 寫 ${mod.totalCredits}（差 ${sum - mod.totalCredits}）`
+    );
+  });
+  if (sumOk) {
+    ok(
+      combos.length > 1
+        ? `學分加總正確：${combos.length} 種選項組合都是 ${mod.totalCredits}`
+        : `學分加總正確：${mod.totalCredits}`
+    );
   }
 
   // 3. 每個大類底下，項目加總是否等於大類的 minCredits
+  const said = new Set();
   (mod.categories || []).forEach((cat) => {
     if (cat.minCredits == null) return;
-    const bsum = cat.buckets.reduce((n, b) => n + (Number(b.minCredits) || 0), 0);
-    if (bsum !== Number(cat.minCredits)) {
-      say(`  ⚠ 「${cat.label}」大類寫 ${cat.minCredits}，底下項目加總 ${bsum}`);
-    }
+    combos.forEach((combo) => {
+      if (!isActive(cat, combo)) return;
+      const bsum = sumBuckets(cat, combo);
+      if (bsum === Number(cat.minCredits)) return;
+      const line = `  ⚠ 「${cat.label}」大類寫 ${cat.minCredits}，底下項目加總 ${bsum}`;
+      if (said.has(line)) return;
+      said.add(line);
+      say(line);
+    });
   });
 
   // 4. 科目判定引用的標籤是否存在
@@ -75,13 +94,16 @@ function checkModule(mod) {
   const optionIds = new Set((mod.options || []).map((o) => o.id));
   const badWhen = [];
   const walkWhen = (g) => {
-    if (g.when && g.when.option && !optionIds.has(g.when.option)) {
-      badWhen.push(`${g.label} → when.option='${g.when.option}'`);
-    }
+    whenOptions(g.when).forEach((id) => {
+      if (!optionIds.has(id)) badWhen.push(`${g.label} → when.option='${id}'`);
+    });
     (g.groups || []).forEach(walkWhen);
   };
   (mod.subjectGroups || []).forEach(walkWhen);
-  (mod.categories || []).forEach((cat) => (cat.buckets || []).forEach(walkWhen));
+  (mod.categories || []).forEach((cat) => {
+    walkWhen(cat);
+    (cat.buckets || []).forEach(walkWhen);
+  });
   if (badWhen.length) badWhen.forEach((b) => bad(`when 引用了不存在的選項：${b}`));
 
   // 6. 統計
@@ -92,6 +114,24 @@ function checkModule(mod) {
   };
   (mod.subjectGroups || []).forEach(count);
   say(`  · 標籤 ${(mod.tags || []).length} 個｜大類 ${(mod.categories || []).length} 個｜規定科目 ${itemCount} 門｜應修 ${mod.totalCredits} 學分`);
+}
+
+/** when 裡引用到的所有選項 id（含 allOf 巢狀） */
+function whenOptions(w) {
+  if (!w) return [];
+  if (Array.isArray(w.allOf)) return w.allOf.flatMap(whenOptions);
+  return w.option ? [w.option] : [];
+}
+
+/** 把一組選項值講成人話：「第一專長＝計財專長、第二專長＝電機工程」 */
+function comboLabel(mod, combo) {
+  return (mod.options || [])
+    .filter((opt) => opt.id in combo)
+    .map((opt) => {
+      const ch = (opt.choices || []).find((c) => c.value === combo[opt.id]);
+      return `${opt.label}＝${ch ? ch.label : combo[opt.id]}`;
+    })
+    .join('、');
 }
 
 say('══ 逐一檢查各身分模組 ══');
