@@ -31,7 +31,6 @@ export function renderSetup() {
       <legend>額外身分（可複選）</legend>
       ${IDENTITIES.map((m) => identityRow(m, plan.identityIds.includes(m.id))).join('')}
       ${plan.customIdentities.map((c) => customRow(c)).join('')}
-      <button class="link-btn" id="identityCustomBtn" type="button" style="margin-top:8px">＋ 自訂身分（其他輔系／雙主修／學分學程）</button>
     </fieldset>
 
     ${
@@ -186,8 +185,6 @@ function bindEvents() {
     if (e.target.id === 'studentName') store.setMeta('studentName', e.target.value);
   });
 
-  delegate(setup, 'click', '#identityCustomBtn', openCustomDialog);
-
   const box = $('#importBox');
   delegate(box, 'click', '#importToggleAll', () => {
     const boxes = [...box.querySelectorAll('input[type=checkbox]:not(:disabled)')];
@@ -217,49 +214,5 @@ function bindEvents() {
         ? `已加入 ${unique.length} 門課，略過 ${skipped} 門重複的`
         : `已加入 ${unique.length} 門課到待排清單`
     );
-  });
-}
-
-/* ── 自訂身分 ─────────────────────────────── */
-function openCustomDialog() {
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay';
-  overlay.innerHTML = `
-    <div class="modal" role="dialog" aria-modal="true" aria-label="自訂身分" style="width:min(420px,100%)">
-      <h3>自訂身分</h3>
-      <p class="sub">系統沒有內建的輔系、雙主修或學分學程，可以自己加。加入後會自動產生一個專屬標籤，學分要求疊加到畢業總學分上。</p>
-      <label for="ciType">類別</label>
-      <select id="ciType">
-        <option value="minor">輔系</option>
-        <option value="doubleMajor">雙主修</option>
-        <option value="program">學分學程</option>
-      </select>
-      <label for="ciLabel">名稱</label>
-      <input type="text" id="ciLabel" placeholder="例：資訊工程學系">
-      <label for="ciCredits">應加修學分</label>
-      <input type="number" id="ciCredits" min="0" step="1" value="20">
-      <div class="modal-actions">
-        <span class="spacer"></span>
-        <button class="btn-ghost" id="ciCancel" type="button">取消</button>
-        <button class="btn-primary" id="ciSave" type="button" style="width:auto;margin:0">加入</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-
-  const close = () => overlay.remove();
-  overlay.addEventListener('click', (e) => e.target === overlay && close());
-  overlay.querySelector('#ciCancel').addEventListener('click', close);
-  overlay.querySelector('#ciLabel').focus();
-
-  overlay.querySelector('#ciSave').addEventListener('click', () => {
-    const label = overlay.querySelector('#ciLabel').value.trim();
-    if (!label) return toast('請先輸入名稱');
-    store.addCustomIdentity({
-      type: overlay.querySelector('#ciType').value,
-      label,
-      credits: overlay.querySelector('#ciCredits').value,
-    });
-    close();
-    toast('已加入身分，畢業學分要求已更新');
   });
 }

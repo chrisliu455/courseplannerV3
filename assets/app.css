@@ -291,3 +291,6 @@ details.course-detail[open] summary::before { content: '▾ '; }
 
 /* 新增課程的第二層細分選單 */
 select.detail-pick { border-color: var(--brass); }
+
+/* 學分數的提示文字調淡，避免被誤看成已填入的預設值 */
+#courseCredit::placeholder { color: var(--ink-soft); opacity: .18; }
