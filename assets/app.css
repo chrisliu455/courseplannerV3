@@ -294,3 +294,29 @@ select.detail-pick { border-color: var(--brass); }
 
 /* 學分數的提示文字調淡，避免被誤看成已填入的預設值 */
 #courseCredit::placeholder { color: var(--ink-soft); opacity: .18; }
+
+
+/* ── 學期鎖定 ───────────────────────────── */
+/* 標題與學分之間的彈性空白，讓鎖頭貼在「大一上」右邊 */
+.sem-head .spacer { flex: 1; }
+.lock-btn {
+  background: none; border: 1px solid transparent; border-radius: 2px;
+  padding: 2px 4px 0; line-height: 0; flex: 0 0 auto;
+  /* 圖示是 SVG，顏色就吃這一行的 color */
+  color: var(--ink-soft);
+  transition: color .15s;
+}
+/* 滑鼠移上去變黑，提示「這顆可以按」 */
+.lock-btn:hover { color: var(--ink); border-color: var(--hairline); background: #fff; }
+
+.sem-card.locked { border-color: var(--navy); }
+.sem-card.locked .sem-head { background: #DCE3EC; border-bottom-color: var(--navy); }
+.sem-card.locked .sem-head h3 { color: var(--navy); }
+.sem-card.locked .credit-badge { background: var(--navy); }
+.sem-card.locked .sem-body { background: #F1F4F8; }
+/* 鎖住的卡片：拿掉「可拖曳」的手勢與白底，看得清楚但明顯不能動 */
+.sem-card.locked .chip { cursor: default; background: #FAFBFD; border-color: #C6CFDC; }
+.sem-card.locked .chip select.tag-pick {
+  background: transparent; border-color: transparent; appearance: none; padding-right: 3px;
+}
+.sem-card.locked .drop-hint { border-style: solid; border-color: #C6CFDC; }

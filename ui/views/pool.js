@@ -97,8 +97,10 @@ export function renderPool() {
  * 課程卡。學期表與待排池共用，差別只在右上角那顆按鈕：
  *   待排池 → ×  刪除課程
  *   學期表 → ↩  移回待排池（不刪課）
+ *
+ * locked＝這張卡在已鎖定的學期裡：不能拖、不能改標籤、不能移回待排。
  */
-export function chipHTML(course, tags, context = 'pool') {
+export function chipHTML(course, tags, context = 'pool', locked = false) {
   const tag = tags.find((t) => t.id === course.tag);
   const color = tag ? tag.color : 'var(--grey)';
   const warn = !course.tag
@@ -110,18 +112,22 @@ export function chipHTML(course, tags, context = 'pool') {
     : '';
 
   return `
-  <div class="chip${selectedId === course.id ? ' selected' : ''}" draggable="true"
+  <div class="chip${selectedId === course.id ? ' selected' : ''}${locked ? ' locked' : ''}"
+       draggable="${locked ? 'false' : 'true'}"
        data-id="${course.id}" style="border-left-color:${esc(color)}">
     <div class="body">
       <div class="name">${esc(course.name)}</div>
       <div class="tag-line">
-        <select class="tag-pick" data-id="${course.id}" title="更改標籤">${tagOptions(tags, course.tag)}</select>
+        <select class="tag-pick" data-id="${course.id}" title="${locked ? '學期已鎖定，無法更改' : '更改標籤'}"
+                ${locked ? 'disabled' : ''}>${tagOptions(tags, course.tag)}</select>
         ${warn ? `<span class="warn-dot" title="${esc(warn)}">!</span>` : ''}
       </div>
     </div>
     <span class="credit">${num(course.credit)}</span>
     ${
-      context === 'grid'
+      locked
+        ? ''
+        : context === 'grid'
         ? `<button class="chip-btn unschedule" data-unschedule="${course.id}" title="移回待排清單" type="button">↩</button>`
         : `<button class="del-x" data-del="${course.id}" title="刪除課程" type="button">×</button>`
     }
@@ -166,6 +172,16 @@ function tagOptions(tags, current) {
   );
 }
 
+/**
+ * 這個元素是不是落在已鎖定的學期卡裡。
+ *
+ * closest() 會從自己開始往上找最近的符合祖先，找不到回傳 null；
+ * 這裡用它把「鎖定」一次擋在所有卡片互動之前，不必每個按鈕各判斷一次。
+ */
+function inLockedSemester(el) {
+  return Boolean(el?.closest?.('.sem-card.locked'));
+}
+
 /* ── 事件（委派在容器上，重畫不用重綁）────── */
 function bindEvents() {
   bound = true;
@@ -185,11 +201,15 @@ function bindEvents() {
 
   /* 卡片互動：改標籤、刪除、選取、拖曳 —— 綁在 document 上一次搞定池子與課表 */
   document.addEventListener('change', (e) => {
+    if (inLockedSemester(e.target)) return;
     const sel = e.target.closest('.tag-pick');
     if (sel) store.updateCourse(sel.dataset.id, { tag: sel.value || null });
   });
 
   document.addEventListener('click', (e) => {
+    /* 鎖住的學期：卡片上的互動一律忽略（鎖頭由 grid.js 自己的監聽器處理） */
+    if (inLockedSemester(e.target)) return;
+
     const back = e.target.closest('[data-unschedule]');
     if (back) {
       e.stopPropagation();
@@ -212,7 +232,7 @@ function bindEvents() {
 
   document.addEventListener('dragstart', (e) => {
     const chip = e.target.closest('.chip');
-    if (!chip) return;
+    if (!chip || inLockedSemester(chip)) return;
     e.dataTransfer.setData('text/plain', chip.dataset.id);
     e.dataTransfer.effectAllowed = 'move';
     chip.classList.add('dragging');

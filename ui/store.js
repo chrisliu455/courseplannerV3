@@ -55,6 +55,7 @@ function emptyPlan() {
     meta: { studentName: '' },
     options: {},
     courses: [],
+    lockedSemesters: [],    // 已鎖定、不接受編輯的學期 id，例：['y1s1']
     tagEdits: { tags: {}, moves: {}, custom: [] },
   };
 }
@@ -91,6 +92,8 @@ function migrate(data) {
     identityIds: [...(data.identityIds || [])],
     customIdentities: [...(data.customIdentities || [])],
     courses: (data.courses || []).map((c) => ({ ...c, credit: Number(c.credit) || 0 })),
+    // 舊版規劃檔沒有這個欄位，讀進來就是全部未鎖定
+    lockedSemesters: [...(data.lockedSemesters || [])],
     tagEdits: { ...base.tagEdits, ...(data.tagEdits || {}) },
   };
 
@@ -120,6 +123,11 @@ function save() {
 function commit() {
   save();
   listeners.forEach((fn) => fn(plan));
+}
+
+/** 這個學期是否已鎖定。semester 為 null（＝待排清單）時一律視為未鎖定 */
+function isLocked(semester) {
+  return Boolean(semester) && plan.lockedSemesters.includes(semester);
 }
 
 /** 目前生效的身分模組（主修排第一） */
@@ -240,23 +248,40 @@ export const store = {
   },
   updateCourse(id, patch) {
     const c = plan.courses.find((x) => x.id === id);
-    if (!c) return;
+    if (!c || isLocked(c.semester)) return;
     Object.assign(c, patch);
     commit();
   },
   removeCourse(id) {
-    plan.courses = plan.courses.filter((c) => c.id !== id);
+    const c = plan.courses.find((x) => x.id === id);
+    if (!c || isLocked(c.semester)) return;
+    plan.courses = plan.courses.filter((x) => x.id !== id);
     commit();
   },
   assign(id, semester) {
     const c = plan.courses.find((x) => x.id === id);
-    if (!c || c.semester === semester) return;
+    if (!c || c.semester === semester) return false;
+    // 最後一道防線：搬出去或搬進來，只要有一邊鎖住就不動
+    if (isLocked(c.semester) || isLocked(semester)) return false;
     c.semester = semester;
     commit();
+    return true;
   },
   hasCourse(name) {
     const key = String(name).replace(/\s+/g, '').toLowerCase();
     return plan.courses.some((c) => c.name.replace(/\s+/g, '').toLowerCase() === key);
+  },
+
+  /* 學期鎖定：鎖住的學期不接受搬入、搬出，裡面的課也不能改標籤或備註 */
+  isSemesterLocked: isLocked,
+  toggleSemesterLock(semester) {
+    if (!semester) return false;
+    const next = !isLocked(semester);
+    plan.lockedSemesters = next
+      ? [...plan.lockedSemesters, semester]
+      : plan.lockedSemesters.filter((s) => s !== semester);
+    commit();
+    return next;
   },
 
   /* 標籤編輯 */
