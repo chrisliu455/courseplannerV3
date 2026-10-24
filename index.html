@@ -93,7 +93,14 @@
 </header>
 
 <div class="layout">
+  <!-- 側欄收起時留在畫面最左邊的細邊，滑鼠移上去側欄就浮出來。
+       預設 hidden：萬一瀏覽器還拿著舊版 app.css，這條邊也不會跑出來把版面擠歪 -->
+  <div class="sidebar-edge" id="sidebarEdge" aria-hidden="true" hidden>»</div>
   <aside class="sidebar">
+    <div class="sidebar-bar">
+      <button class="btn-ghost btn-small" id="sidebarToggle" type="button" aria-expanded="true">« 收起側欄</button>
+    </div>
+
     <div class="section-label"><span class="n">1</span>修業設定</div>
     <div class="card-box" id="setupBox"></div>
 

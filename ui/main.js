@@ -137,6 +137,63 @@ on('#resetBtn', 'click', () => {
   }
 });
 
+/* ── 側欄收起 ─────────────────────────────── */
+/* 收起狀態只是畫面偏好、不含規劃內容，所以不管有沒有開自動保存都記在這個瀏覽器 */
+const SIDEBAR_KEY = 'credit-planner/sidebar';
+const layout = $('.layout');
+
+function setSidebarCollapsed(collapsed, remember = true) {
+  if (!layout) return;
+  layout.classList.toggle('sidebar-collapsed', collapsed);
+  const btn = $('#sidebarToggle');
+  if (btn) {
+    btn.textContent = collapsed ? '固定側欄' : '« 收起側欄';
+    btn.title = collapsed ? '把側欄固定回左邊' : '收起側欄，滑鼠移到畫面最左邊時才浮出來';
+    btn.setAttribute('aria-expanded', String(!collapsed));
+  }
+  if (!remember) return;
+  try {
+    localStorage.setItem(SIDEBAR_KEY, collapsed ? 'collapsed' : 'open');
+  } catch {
+    /* 無痕模式寫不進去：這次照樣收起，只是下次打開不會記得 */
+  }
+}
+
+on('#sidebarToggle', 'click', (e) => {
+  const collapse = !layout.classList.contains('sidebar-collapsed');
+  setSidebarCollapsed(collapse);
+  if (!collapse) return;
+  // 剛按下時游標還停在側欄上，不處理的話側欄會「收起後仍浮在原地」，直到游標離開
+  layout.classList.add('sidebar-away');
+  e.currentTarget.blur();
+});
+/* 游標離開側欄、或重新碰到左邊細邊，就恢復「移過去就浮出」 */
+on('.sidebar', 'mouseleave', () => layout.classList.remove('sidebar-away'));
+on('#sidebarEdge', 'mouseenter', () => layout.classList.remove('sidebar-away'));
+
+/* 拖曳課程時滑鼠的 hover 狀態不會更新，改看拖到哪裡：
+   進課表 → 側欄收回，不擋住學期格子；碰到左邊細邊 → 側欄浮出，可以拖回待排課程 */
+on('.main', 'dragover', () => {
+  if (!layout.classList.contains('sidebar-collapsed')) return;
+  layout.classList.add('sidebar-away');
+  layout.classList.remove('sidebar-peek');
+});
+on('#sidebarEdge', 'dragover', () => {
+  layout.classList.remove('sidebar-away');
+  layout.classList.add('sidebar-peek');
+});
+document.addEventListener('dragend', () => layout?.classList.remove('sidebar-peek'));
+
+let startCollapsed = false;
+try {
+  startCollapsed = localStorage.getItem(SIDEBAR_KEY) === 'collapsed';
+} catch {
+  /* 讀不到就照預設展開 */
+}
+setSidebarCollapsed(startCollapsed, false);
+/* 等第一個畫面畫好再開動畫，否則記住「收起」的人每次打開都會看到側欄滑出去 */
+requestAnimationFrame(() => requestAnimationFrame(() => layout?.classList.add('sidebar-ready')));
+
 /* 檔案版本對不上時講清楚，不要讓使用者對著壞掉的畫面猜 */
 const pageBuild = document.documentElement.dataset.build || '(舊版，沒有版本標記)';
 if (pageBuild !== BUILD || missing.length) {

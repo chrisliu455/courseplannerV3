@@ -320,3 +320,51 @@ select.detail-pick { border-color: var(--brass); }
   background: transparent; border-color: transparent; appearance: none; padding-right: 3px;
 }
 .sem-card.locked .drop-hint { border-style: solid; border-color: #C6CFDC; }
+
+/* ── 側欄收起 ───────────────────────────── */
+/* 展開時：側欄照常佔左邊一欄，只是頂端多一顆「收起側欄」 */
+.layout { position: relative; }
+.sidebar-bar { display: flex; justify-content: flex-end; margin: -10px 0 8px; }
+.sidebar-edge { display: none; }
+
+/* 收起時：課表佔滿整個寬度，側欄改成疊在課表上方、平常藏在畫面左邊外面 */
+.layout.sidebar-collapsed { grid-template-columns: 1fr; }
+.layout.sidebar-collapsed .sidebar {
+  position: absolute; top: 0; bottom: 0; left: 0; z-index: 50;
+  width: 340px; max-width: 85vw;
+  transform: translateX(-100%);
+}
+/* 只在畫面載入完成後才加動畫，免得一打開頁面就看到側欄滑出去 */
+.layout.sidebar-ready .sidebar { transition: transform .18s ease, box-shadow .18s ease; }
+
+/* 畫面最左邊的細邊：側欄收起時唯一看得到的部分 */
+.layout.sidebar-collapsed .sidebar-edge {
+  display: flex; justify-content: center; align-items: flex-start;
+  position: absolute; top: 0; bottom: 0; left: 0; z-index: 40; width: 12px;
+  padding-top: 24px; font-size: 11px; color: var(--ink-soft);
+  background: var(--paper-dark); border-right: 2px solid var(--ink);
+}
+.layout.sidebar-collapsed .sidebar-edge:hover { background: #F4EBD0; color: var(--ink); }
+.layout.sidebar-collapsed .main { padding-left: 34px; }
+
+/* 浮出：滑鼠在細邊或側欄上、鍵盤焦點在側欄裡、或拖著課程碰到細邊 */
+.layout.sidebar-collapsed .sidebar-edge:hover + .sidebar,
+.layout.sidebar-collapsed .sidebar:hover,
+.layout.sidebar-collapsed .sidebar:focus-within,
+.layout.sidebar-collapsed.sidebar-peek .sidebar {
+  transform: none; box-shadow: 6px 0 24px rgba(30, 26, 20, .22);
+}
+/* 強制收回：剛按下「收起」游標還停在側欄上時、拖著課程移進課表時。
+   要寫在「浮出」後面，兩條規則一樣具體時後面的才會贏 */
+.layout.sidebar-collapsed.sidebar-away .sidebar { transform: translateX(-100%); box-shadow: none; }
+
+/* 手機寬度本來就是上下排列，也沒有「滑鼠移過去」這回事：整個功能關掉 */
+@media (max-width: 900px) {
+  .sidebar-bar { display: none; }
+  .layout.sidebar-collapsed .sidebar-edge { display: none; }
+  .layout.sidebar-collapsed .main { padding-left: 26px; }
+  .layout.sidebar-collapsed .sidebar,
+  .layout.sidebar-collapsed.sidebar-away .sidebar {
+    position: static; width: auto; max-width: none; transform: none; box-shadow: none;
+  }
+}
