@@ -295,6 +295,35 @@ select.detail-pick { border-color: var(--brass); }
 /* 學分數的提示文字調淡，避免被誤看成已填入的預設值 */
 #courseCredit::placeholder { color: var(--ink-soft); opacity: .18; }
 
+/* ── 課程卡片的備註 ─────────────────────── */
+.chip .note-btn {
+  background: none; border: none; flex: 0 0 auto;
+  padding: 0 2px; font-size: 11px; line-height: 1; font-weight: 400;
+  color: var(--hairline);
+}
+.chip .note-btn:hover { color: var(--navy); }
+/* 已有備註時把筆的顏色點亮，一眼看得出哪幾門課寫過東西 */
+.chip .note-btn.on { color: var(--brass); }
+/* 備註貼在課名右邊那塊空白；空間不夠時整段自動掉到下一行 */
+.chip .name-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 7px; }
+.chip .note-line {
+  flex: 1 1 6em; min-width: 6em;
+  font-size: 10.5px; line-height: 1.3;
+  color: var(--ink-soft); font-style: italic; cursor: text;
+  /* 只顯示一行、多的用 … 收掉。用 line-clamp 而不是 nowrap：
+     nowrap 的文字不能斷行，會把整個側欄撐寬；line-clamp 允許斷行後才裁掉。 */
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+.chip .note-edit { margin-top: 4px; }
+.chip .note-edit textarea {
+  width: 100%; padding: 4px 6px; font-size: 11px; line-height: 1.35;
+  resize: none; user-select: text; cursor: text;
+}
+.chip .note-count {
+  display: block; text-align: right; margin-top: 1px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--ink-soft);
+}
 
 /* ── 學期鎖定 ───────────────────────────── */
 /* 標題與學分之間的彈性空白，讓鎖頭貼在「大一上」右邊 */

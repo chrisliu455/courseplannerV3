@@ -16,6 +16,9 @@ let bound = false;
 let selectedId = null;
 let keyword = '';
 
+/** 備註字數上限。卡片在窄格子裡也要放得下，所以刻意壓短。 */
+const NOTE_MAX = 40;
+
 export function getSelectedId() {
   return selectedId;
 }
@@ -98,7 +101,7 @@ export function renderPool() {
  *   待排池 → ×  刪除課程
  *   學期表 → ↩  移回待排池（不刪課）
  *
- * locked＝這張卡在已鎖定的學期裡：不能拖、不能改標籤、不能移回待排。
+ * locked＝這張卡在已鎖定的學期裡：不能拖、不能改標籤、不能改備註、不能移回待排。
  */
 export function chipHTML(course, tags, context = 'pool', locked = false) {
   const tag = tags.find((t) => t.id === course.tag);
@@ -110,17 +113,27 @@ export function chipHTML(course, tags, context = 'pool', locked = false) {
     : !tag.active
     ? `「${tag.categoryLabel}」在目前身分下未啟用`
     : '';
+  const note = (course.note || '').trim();
 
   return `
   <div class="chip${selectedId === course.id ? ' selected' : ''}${locked ? ' locked' : ''}"
        draggable="${locked ? 'false' : 'true'}"
        data-id="${course.id}" style="border-left-color:${esc(color)}">
     <div class="body">
-      <div class="name">${esc(course.name)}</div>
+      <div class="name-line">
+        <div class="name">${esc(course.name)}</div>
+        ${note ? `<div class="note-line" title="${esc(note)}">${esc(note)}</div>` : ''}
+      </div>
       <div class="tag-line">
         <select class="tag-pick" data-id="${course.id}" title="${locked ? '學期已鎖定，無法更改' : '更改標籤'}"
                 ${locked ? 'disabled' : ''}>${tagOptions(tags, course.tag)}</select>
         ${warn ? `<span class="warn-dot" title="${esc(warn)}">!</span>` : ''}
+        ${
+          locked
+            ? ''
+            : `<button class="note-btn${note ? ' on' : ''}" data-note="${course.id}" type="button"
+                title="${note ? '編輯備註' : '加備註'}">✎</button>`
+        }
       </div>
     </div>
     <span class="credit">${num(course.credit)}</span>
@@ -173,6 +186,65 @@ function tagOptions(tags, current) {
 }
 
 /**
+ * 在卡片內就地展開備註輸入框。
+ *
+ * 直接操作 DOM、不走重畫，這樣打字時不會被重畫打斷。
+ * 存檔時呼叫 store.updateCourse，重畫由 store 自己觸發。
+ */
+function openNoteEditor(chip) {
+  if (!chip || chip.querySelector('.note-edit')) return;
+  const id = chip.dataset.id;
+  const course = store.plan.courses.find((c) => c.id === id);
+  if (!course) return;
+
+  const body = chip.querySelector('.body');
+  const line = body.querySelector('.note-line');
+  if (line) line.hidden = true; // 編輯時先收起摘要那一行，免得同一段字出現兩次
+
+  const box = document.createElement('div');
+  box.className = 'note-edit';
+  box.innerHTML = `
+    <textarea rows="2" maxlength="${NOTE_MAX}" placeholder="例：跟林老師修"></textarea>
+    <span class="note-count"></span>`;
+  body.appendChild(box);
+
+  const ta = box.querySelector('textarea');
+  const count = box.querySelector('.note-count');
+  ta.value = course.note || '';
+
+  /* 卡片本身可拖曳，編輯時要先關掉，否則在輸入框裡拖曳選字會變成拖動整張卡 */
+  chip.draggable = false;
+
+  let closed = false;
+  const close = (save) => {
+    if (closed) return;
+    closed = true;
+    const next = ta.value.trim();
+    box.remove();
+    chip.draggable = true;
+    if (save && next !== (course.note || '').trim()) store.updateCourse(id, { note: next });
+    else if (line) line.hidden = false;
+  };
+
+  const sync = () => (count.textContent = `${ta.value.length}／${NOTE_MAX}`);
+  sync();
+  ta.addEventListener('input', sync);
+  ta.addEventListener('blur', () => close(true));
+  ta.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      close(true); // Enter 存檔，Shift+Enter 換行
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      close(false); // Esc 放棄這次修改
+    }
+  });
+
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+/**
  * 這個元素是不是落在已鎖定的學期卡裡。
  *
  * closest() 會從自己開始往上找最近的符合祖先，找不到回傳 null；
@@ -209,6 +281,14 @@ function bindEvents() {
   document.addEventListener('click', (e) => {
     /* 鎖住的學期：卡片上的互動一律忽略（鎖頭由 grid.js 自己的監聽器處理） */
     if (inLockedSemester(e.target)) return;
+
+    /* 備註：點 ✎ 或已寫好的那行字都能開啟編輯，且不能讓事件繼續往下觸發卡片選取 */
+    const noteHit = e.target.closest('[data-note], .note-line');
+    if (noteHit) {
+      e.stopPropagation();
+      return openNoteEditor(noteHit.closest('.chip'));
+    }
+    if (e.target.closest('.note-edit')) return; // 點在輸入框裡：什麼都別做
 
     const back = e.target.closest('[data-unschedule]');
     if (back) {
