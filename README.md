@@ -27,6 +27,7 @@ python3 -m http.server 8080   # 然後開 http://localhost:8080
 ```bash
 node --test tests/engine.test.mjs   # 引擎單元測試，不需要任何套件
 node --test tests/schedule.test.mjs # 學期對照、選班、衝堂判定，不需要任何套件
+node --test tests/store-section.test.mjs  # store 的選班規則（自動選班、換學期），不需要任何套件
 node tests/smoke.mjs                # 全 UI 冒煙測試，需先 npm install jsdom
 node tests/feedback.mjs             # 回報問題送出的內容，需先 npm install jsdom
 node tests/version-mismatch.mjs     # 版號與快取破壞，需先 npm install jsdom
@@ -60,7 +61,7 @@ ui/                     介面層（不做任何計算）
   main.js                 串接 store、引擎、各 view
   store.js                狀態、localStorage、匯入匯出
   feedback-config.js      回報問題要送到哪個 Google 表單（只有設定值）
-  views/                  setup / pool / grid / report / tags / help / feedback
+  views/                  setup / pool / grid / week / section-picker / report / tags / help / feedback
 
 offerings/              開課資料（純資料，選班與衝堂判定用）
   index.js                註冊表
@@ -416,7 +417,20 @@ dataNote: '課程資料尚未與系辦公告核對',
 - **換學期**：新學期找得到同一科號就保留選班，找不到就清掉讓使用者重選；拖回待排課程時保留。換主修時也會重新檢查
 - **衝堂**：`findConflicts()` 比對同一學期各課的節次，回傳兩兩衝堂的組合與重疊的節次
 
+- **自動選班**：排進學期時，同名的課只開一班就直接選那一班；兩班以上留給使用者挑。
+  只在「排進學期」那一刻做，手動取消選班後不會被選回來
+
 新增開課資料檔後要跑 `npm run build`，新檔案才會進 `index.html` 的 importmap。
+
+### 週課表模式（ui/views/week.js、section-picker.js）
+
+「四年課表」標題旁的「列表｜週課表」切換，兩種畫法讀同一份 `plan.courses`，在哪一邊移動課程都會同步。切換狀態記在 localStorage（`credit-planner/view`），只是畫面偏好。
+
+- 八個學期各一張週一～週五 × 13 節（1–4、n、5–9、a–c）的表；中午與晚上灰底，有週六的課才多一欄
+- 選了班的課依節次排進格子；同一格兩門以上＝衝堂，格子標紅，卡片標題列出「哪兩門在哪幾節」
+- 還沒選班、或選的班沒有固定時段（專題研究）的課，放在卡片下方「未定時段」
+- 點格子裡的課或「選班」按鈕開選班視窗：列出同名各班，並先比對會不會跟這學期其他課衝堂；可用關鍵字或科號搜尋
+- 拖到任何一張學期卡片＝換學期；拖回左邊待排課程＝取消排課；鎖住的學期不能拖進拖出、也不能換班
 
 ### 只收錄部分課程（EXTRACT_ONLY）
 

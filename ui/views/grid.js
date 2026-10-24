@@ -50,7 +50,7 @@ export function renderGrid() {
  * emoji 的顏色由系統字型決定，CSS 的 color 管不到（只能用 filter 硬壓，各瀏覽器結果不一）。
  * SVG 裡寫 currentColor，就等於「跟著 CSS 的 color 走」，灰或黑完全由樣式表決定。
  */
-function lockIcon(locked) {
+export function lockIcon(locked) {
   const shackle = locked
     ? 'M7 11 V7 a5 5 0 0 1 10 0 V11'   // 扣上：兩腳都落在鎖身上
     : 'M7 11 V7 a5 5 0 0 1 9.9 -1';    // 打開：右邊那腳翹起來、沒有扣回去

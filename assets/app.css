@@ -368,3 +368,90 @@ select.detail-pick { border-color: var(--brass); }
     position: static; width: auto; max-width: none; transform: none; box-shadow: none;
   }
 }
+
+/* ── 列表／週課表切換 ───────────────────── */
+/* .grid4 自己有 display:grid，會蓋過 hidden 屬性，所以要明寫 */
+.grid4[hidden] { display: none; }
+.view-toggle {
+  display: inline-flex; margin-left: 10px; border: 1px solid var(--ink); border-radius: 2px; overflow: hidden;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.view-toggle button {
+  background: transparent; border: none; border-radius: 0; padding: 3px 11px;
+  font-size: 11.5px; font-weight: 500; color: var(--ink-soft);
+}
+.view-toggle button + button { border-left: 1px solid var(--ink); }
+.view-toggle button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+/* ── 週課表 ─────────────────────────────── */
+.wk-card { min-height: 0; }
+.wk-card.clash { border-color: var(--danger); }
+.wk-card.drag-over { background: #F4EBD0; outline: 2px dashed var(--brass); outline-offset: -3px; }
+.wk-term { font-size: 11px; color: var(--ink-soft); margin-left: 6px; }
+.wk-clash-badge {
+  font-size: 11px; font-weight: 600; color: #fff; background: var(--danger);
+  padding: 2px 8px; border-radius: 9px; margin-right: 6px;
+}
+.wk-body { padding: 8px 9px 9px; }
+/* 時段是參考別的學期時的提醒 */
+.wk-note {
+  font-size: 11px; color: #7A5A12; background: #FBF0E4;
+  border-left: 3px solid var(--brass); border-radius: 0; padding: 3px 7px; margin-bottom: 6px;
+}
+.wk-clash-line { font-size: 11px; font-weight: 600; color: var(--danger); margin-bottom: 4px; }
+
+.tt { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.tt th { font-size: 10.5px; font-weight: 600; color: var(--ink-soft); padding: 2px 0; }
+.tt th.tt-p { width: 18px; font-family: 'IBM Plex Mono', monospace; font-weight: 500; }
+.tt td { border: 1px solid var(--hairline); height: 20px; padding: 1px; vertical-align: top; background: #fff; }
+/* 中午 n、晚上 a–c：灰底，一眼分出白天和其他時段 */
+.tt tr.quiet td { background: var(--paper); }
+.tt td.clash { background: #F7E9E7; border-color: var(--danger); }
+.tt-block {
+  font-size: 10.5px; line-height: 1.35; padding: 1px 3px;
+  background: var(--card); border-left: 3px solid var(--grey); border-radius: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: grab;
+}
+.tt-block + .tt-block { margin-top: 1px; }
+.tt td.clash .tt-block { background: #FBEDEB; color: var(--danger); font-weight: 600; }
+.tt-block:hover { background: #F4EBD0; }
+.tt-block.dragging { opacity: .4; }
+.tt-block.selected { box-shadow: 0 0 0 2px var(--brass) inset; }
+.sem-card.locked .tt-block { cursor: default; }
+.sem-card.locked .tt td { background: #F1F4F8; }
+
+/* 未定時段：沿用一般課程卡，右邊加一顆「選班」 */
+.wk-tray { margin-top: 8px; }
+.wk-tray-label { font-size: 10.5px; color: var(--ink-soft); letter-spacing: .05em; margin-bottom: 4px; }
+.wk-unplaced { display: flex; align-items: center; gap: 6px; }
+.wk-unplaced .chip { flex: 1; min-width: 0; margin-bottom: 4px; }
+.wk-pick {
+  flex: 0 0 auto; margin-bottom: 4px; padding: 3px 7px; font-size: 10.5px; white-space: nowrap;
+  border: 1px solid var(--navy); border-radius: 2px; background: #fff; color: var(--navy);
+}
+.wk-pick:hover { background: var(--navy); color: #fff; }
+.wk-pick-note { flex: 0 0 auto; margin-bottom: 4px; font-size: 10.5px; color: var(--ink-soft); white-space: nowrap; }
+.wk-empty { margin-top: 8px; }
+
+/* ── 選班視窗 ───────────────────────────── */
+/* 全站的 label 是小字欄位標題，這裡的 label 是整列可點的選項，要整個改回來 */
+.sec-row {
+  display: flex; gap: 10px; align-items: flex-start; margin: 0 0 6px; padding: 8px 10px;
+  border: 1px solid var(--hairline); border-radius: 2px; background: #fff; cursor: pointer;
+  font-size: 12.5px; color: var(--ink); letter-spacing: 0;
+}
+.sec-row.on { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; }
+.sec-row input { width: auto; margin-top: 3px; }
+.sec-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sec-title { font-weight: 500; }
+.sec-facts { font-size: 11.5px; color: var(--ink-soft); }
+.sec-limit { font-size: 10.5px; color: var(--ink-soft); font-style: italic; }
+.sec-flags { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.sec-tag {
+  font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 8px; white-space: nowrap;
+  background: var(--paper-dark); color: var(--ink-soft);
+}
+.sec-tag.ref { background: #FBF0E4; color: #7A5A12; }
+.sec-tag.bad { background: var(--danger); color: #fff; }
+.sec-search { margin-top: 6px; }
+.sec-modal .sec-ok { width: auto; margin-top: 0; }

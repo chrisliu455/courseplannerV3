@@ -15,6 +15,7 @@ import { $, num, toast } from './dom.js';
 import { renderSetup } from './views/setup.js';
 import { renderPool } from './views/pool.js';
 import { renderGrid } from './views/grid.js';
+import { renderWeek } from './views/week.js';
 import { renderReport } from './views/report.js';
 import { openTagEditor } from './views/tags.js';
 import { openHelp, maybeAutoShowHelp } from './views/help.js';
@@ -26,6 +27,7 @@ function renderAll() {
   renderSetup();
   renderPool();
   renderGrid();
+  renderWeek();
   renderReport(report);
 }
 
@@ -99,7 +101,10 @@ function importPlan(file) {
 /* ── 啟動 ─────────────────────────────────── */
 store.subscribe(renderAll);
 document.addEventListener('report:refresh', renderAll);
-document.addEventListener('chip:selected', renderGrid);
+document.addEventListener('chip:selected', () => {
+  renderGrid();
+  renderWeek();
+});
 
 /**
  * 綁事件用這個，不要直接 $(...).addEventListener。
@@ -193,6 +198,40 @@ try {
 setSidebarCollapsed(startCollapsed, false);
 /* 等第一個畫面畫好再開動畫，否則記住「收起」的人每次打開都會看到側欄滑出去 */
 requestAnimationFrame(() => requestAnimationFrame(() => layout?.classList.add('sidebar-ready')));
+
+/* ── 列表／週課表 ─────────────────────────── */
+/* 跟側欄一樣只是畫面偏好，記在這個瀏覽器。兩種畫法讀同一份資料，每次重畫兩邊都會更新 */
+const VIEW_KEY = 'credit-planner/view';
+
+function setView(view, remember = true) {
+  const week = view === 'week';
+  const list = $('#semesterGrid');
+  const weekGrid = $('#weekGrid');
+  if (list) list.hidden = week;
+  if (weekGrid) weekGrid.hidden = !week;
+  document.querySelectorAll('#viewToggle [data-view]').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.view === (week ? 'week' : 'list')));
+  });
+  if (!remember) return;
+  try {
+    localStorage.setItem(VIEW_KEY, week ? 'week' : 'list');
+  } catch {
+    /* 無痕模式：這次照樣切換，只是下次打開不會記得 */
+  }
+}
+
+on('#viewToggle', 'click', (e) => {
+  const btn = e.target.closest('[data-view]');
+  if (btn) setView(btn.dataset.view);
+});
+
+let startView = 'list';
+try {
+  startView = localStorage.getItem(VIEW_KEY) === 'week' ? 'week' : 'list';
+} catch {
+  /* 讀不到就照預設的列表 */
+}
+setView(startView, false);
 
 /* 檔案版本對不上時講清楚，不要讓使用者對著壞掉的畫面猜 */
 const pageBuild = document.documentElement.dataset.build || '(舊版，沒有版本標記)';

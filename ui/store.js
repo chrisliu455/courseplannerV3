@@ -19,7 +19,7 @@
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
 import { OFFERINGS } from '../offerings/index.js';
-import { mergeModules, customModule, termOf, findSection } from '../engine/index.js';
+import { mergeModules, customModule, termOf, findSection, sectionCandidates } from '../engine/index.js';
 
 const STORAGE_KEY = 'credit-planner/plan/v2';
 const LEGACY_PLAN_KEYS = ['credit-planner/plan/v1'];
@@ -149,6 +149,22 @@ function dropUnavailableSection(course) {
   if (course.section && course.semester && !resolveSection(course)) course.section = null;
 }
 
+/**
+ * 排進學期時，同名的課只開一班就直接幫忙選；兩班以上要使用者自己挑。
+ * 只在「排進學期」這一刻做，使用者手動取消選班後不會被自動選回來。
+ */
+function autoPickSection(course) {
+  if (course.section || !course.semester) return;
+  const list = sectionCandidates(OFFERINGS, termKeyOf(course.semester), { name: course.name });
+  if (list.length === 1) course.section = list[0].no;
+}
+
+/** 排進學期後的選班整理：先清掉新學期沒有的班，再看能不能自動選 */
+function settleSection(course) {
+  dropUnavailableSection(course);
+  autoPickSection(course);
+}
+
 /** 目前生效的身分模組（主修排第一） */
 function activeModules() {
   const mods = [getModule(plan.majorId)].filter(Boolean);
@@ -199,7 +215,7 @@ export const store = {
     plan.majorId = id;
     plan.options = {};
     // 入學年不同，同一個「大二上」就對到不同學年度，選過的班可能不存在了
-    plan.courses.forEach(dropUnavailableSection);
+    plan.courses.forEach(settleSection);
     commit();
   },
   addIdentity(id) {
@@ -251,6 +267,7 @@ export const store = {
       note,
       section: null,
     };
+    autoPickSection(course);
     plan.courses.push(course);
     commit();
     return course;
@@ -265,6 +282,7 @@ export const store = {
       note: c.note || '',
       section: c.section || null,
     }));
+    added.forEach(settleSection);
     plan.courses.push(...added);
     commit();
     return added;
@@ -287,8 +305,8 @@ export const store = {
     // 最後一道防線：搬出去或搬進來，只要有一邊鎖住就不動
     if (isLocked(c.semester) || isLocked(semester)) return false;
     c.semester = semester;
-    // 拖回待排課程時保留選班（還沒決定學期，沒得比）；換到別的學期才檢查
-    dropUnavailableSection(c);
+    // 拖回待排課程時保留選班（還沒決定學期，沒得比）；換到別的學期才檢查、才自動選
+    settleSection(c);
     commit();
     return true;
   },

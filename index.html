@@ -40,8 +40,10 @@
     "./ui/views/help.js": "./ui/views/help.js?v=15",
     "./ui/views/pool.js": "./ui/views/pool.js?v=15",
     "./ui/views/report.js": "./ui/views/report.js?v=15",
+    "./ui/views/section-picker.js": "./ui/views/section-picker.js?v=15",
     "./ui/views/setup.js": "./ui/views/setup.js?v=15",
-    "./ui/views/tags.js": "./ui/views/tags.js?v=15"
+    "./ui/views/tags.js": "./ui/views/tags.js?v=15",
+    "./ui/views/week.js": "./ui/views/week.js?v=15"
   }
 }
 </script>
@@ -123,8 +125,16 @@
   </aside>
 
   <main class="main">
-    <div class="section-label"><span class="n">5</span>四年課表</div>
+    <div class="section-label">
+      <span class="n">5</span>四年課表
+      <div class="view-toggle" id="viewToggle" role="group" aria-label="課表顯示方式">
+        <button type="button" data-view="list" aria-pressed="true">列表</button>
+        <button type="button" data-view="week" aria-pressed="false">週課表</button>
+      </div>
+    </div>
     <div class="grid4" id="semesterGrid"></div>
+    <!-- 週課表：跟列表是同一份資料的另一種畫法。預設 hidden，舊版 app.css 也不會把兩種同時攤出來 -->
+    <div class="grid4 week-grid" id="weekGrid" hidden></div>
 
     <div class="section-label" style="margin-top:22px">
       <span class="n">6</span>判定結果
