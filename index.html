@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>學程規劃表 · 四年課表</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./assets/app.css?v=16">
 <!-- cache-bust:start -->
 <!-- 這一段由 tools/bump-build.mjs 產生，請不要手改 -->
@@ -57,27 +54,36 @@
 -->
 
 <header class="topbar">
-  <div class="seal">
-    <svg width="72" height="72" viewBox="0 0 76 76" aria-hidden="true">
-      <circle cx="38" cy="38" r="32" fill="none" stroke="#CBC2A9" stroke-width="6"/>
-      <circle id="sealRing" cx="38" cy="38" r="32" fill="none" stroke="#7A2E2E" stroke-width="6"
-              stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="201"/>
+  <div class="brand">
+    <svg class="brand-mark" width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
+      <rect x="1" y="1" width="34" height="34" rx="9"/>
+      <rect x="9" y="9" width="7" height="7" rx="1.5" fill="#fff"/>
+      <rect x="20" y="9" width="7" height="7" rx="1.5" fill="#fff" opacity=".55"/>
+      <rect x="9" y="20" width="7" height="7" rx="1.5" fill="#fff" opacity=".55"/>
+      <rect x="20" y="20" width="7" height="7" rx="1.5" fill="#fff"/>
     </svg>
-    <div class="center">
-      <div class="pct mono" id="sealPct">0%</div>
-      <div class="pct-label">已認列</div>
+    <div class="title-block">
+      <h1>學程規劃表</h1>
+      <div class="sub" id="majorSub"></div>
     </div>
   </div>
 
-  <div class="title-block">
-    <h1>學程規劃表</h1>
-    <div class="sub" id="majorSub"></div>
-  </div>
-
-  <div class="ledger">
-    <div class="cell"><div class="num mono" id="ledgerTotal">0</div><div class="lab">應修學分</div></div>
-    <div class="cell ok"><div class="num mono" id="ledgerPlanned">0</div><div class="lab">已認列</div></div>
-    <div class="cell warn"><div class="num mono" id="ledgerRemain">0</div><div class="lab">尚需</div></div>
+  <!-- 學分進度。ui/main.js 只認 id：數字寫進 #ledger*、百分比寫進 #sealPct、
+       進度用 #sealRing 的 stroke-dashoffset（總長 201）畫。
+       以前是圓環，現在換成一條直線，同一套算法照樣適用，所以 JS 不用改 -->
+  <div class="progress">
+    <div class="ledger">
+      <span class="lab">已認列</span>
+      <span class="num mono ok" id="ledgerPlanned">0</span>
+      <span class="of mono">/ <span id="ledgerTotal">0</span> 學分</span>
+      <span class="pct mono" id="sealPct">0%</span>
+      <span class="remain">尚需 <span class="mono" id="ledgerRemain">0</span> 學分</span>
+    </div>
+    <svg class="progress-bar" viewBox="0 0 201 8" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="0" y1="4" x2="201" y2="4" class="track"/>
+      <line id="sealRing" x1="0" y1="4" x2="201" y2="4" pathLength="201"
+            stroke-dasharray="201" stroke-dashoffset="201"/>
+    </svg>
   </div>
 
   <div class="file-actions">
@@ -159,7 +165,8 @@ window.addEventListener('load', function () {
   setTimeout(function () {
     if (document.querySelectorAll('.sem-body').length > 0) return; // 有跑起來就不管
 
-    var cssOK = getComputedStyle(document.body).backgroundColor === 'rgb(239, 235, 225)';
+    // 要跟 app.css 的 --paper 同一個顏色；改底色時這裡也要一起改，否則會誤報「找不到 app.css」
+    var cssOK = getComputedStyle(document.body).backgroundColor === 'rgb(244, 245, 247)';
     var isFile = location.protocol === 'file:';
     var reasons = [];
 

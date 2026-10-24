@@ -1,18 +1,32 @@
-/* assets/app.css — 沿用參考檔的紙本帳冊風格 */
+/* assets/app.css — 簡潔網格風格（舊的紙本帳冊風格在 git tag ui-ledger） */
 
+/*
+ * 變數名稱沿用舊版（paper、maroon、brass…），只換了值：
+ * ui/views/*.js 裡的 inline style 直接寫 var(--paper-dark) 這類名稱，改名會連 JS 一起壞掉。
+ */
 :root {
-  --paper: #EFEBE1;
-  --paper-dark: #E4DECF;
-  --card: #FBF9F3;
-  --ink: #1E2A38;
-  --ink-soft: #5B6472;
-  --hairline: #CBC2A9;
-  --maroon: #7A2E2E;
-  --brass: #B08D3F;
-  --navy: #3B5170;
-  --green: #3F6B4A;
-  --grey: #6B6558;
-  --danger: #A5342C;
+  --paper: #F4F5F7;       /* 頁面底色 */
+  --paper-dark: #ECEEF2;  /* 次一階的灰底：表頭、小計區 */
+  --card: #FFFFFF;
+  --ink: #15181E;
+  --ink-soft: #5A6170;
+  --hairline: #E2E5EA;
+  --accent: #2B50D6;      /* 主色：主要按鈕、選取、焦點、進度 */
+  --accent-tint: #EEF2FD;
+  --maroon: var(--accent);
+  --brass: #B54708;       /* 提醒（橘）：待核對、學分算在別處、參考資料 */
+  --warn-tint: #FDF3EC;
+  --warn-ink: #9A3C06;
+  --navy: #3B414D;        /* 鎖定的學期 */
+  --green: #0F766E;
+  --ok-tint: #EAF5F4;
+  --grey: #6B7280;
+  --danger: #B42318;
+  --danger-tint: #FDECEA;
+
+  /* 系統字型，不從外部載入：中文在 Windows 是微軟正黑體、Mac 是蘋方 */
+  --font-sans: system-ui, -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -20,209 +34,231 @@ html, body { margin: 0; padding: 0; height: 100%; }
 body {
   background: var(--paper);
   color: var(--ink);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-sans);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
-::selection { background: var(--brass); color: #fff; }
-h1, h2, h3 { font-family: 'Source Serif 4', serif; margin: 0; }
-.mono { font-family: 'IBM Plex Mono', monospace; }
-:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+::selection { background: var(--accent); color: #fff; }
+h1, h2, h3 { font-family: var(--font-sans); font-weight: 700; margin: 0; }
+.mono { font-family: var(--font-mono); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ── Header ─────────────────────────────── */
 .topbar {
-  display: flex; align-items: center; gap: 24px;
-  padding: 18px 28px; background: var(--card);
-  border-bottom: 2px solid var(--ink); flex: 0 0 auto; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 14px 32px;
+  padding: 14px 28px; background: var(--card);
+  border-bottom: 1px solid var(--hairline); flex: 0 0 auto; flex-wrap: wrap;
 }
-.seal { position: relative; width: 72px; height: 72px; flex: 0 0 auto; }
-.seal svg { transform: rotate(-90deg); }
-.seal .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.seal .pct { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 15px; color: var(--maroon); }
-.seal .pct-label { font-size: 8px; letter-spacing: .12em; color: var(--ink-soft); margin-top: 1px; }
-.title-block h1 { font-size: 21px; }
-.title-block .sub { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
-.ledger { margin-left: auto; display: flex; border: 1px solid var(--hairline); border-radius: 2px; overflow: hidden; }
-.ledger .cell { padding: 7px 16px; text-align: center; border-left: 1px solid var(--hairline); }
-.ledger .cell:first-child { border-left: none; }
-.ledger .num { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 17px; }
-.ledger .lab { font-size: 10px; color: var(--ink-soft); letter-spacing: .06em; margin-top: 2px; }
-.ledger .ok .num { color: var(--green); }
-.ledger .warn .num { color: var(--danger); }
-.file-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.brand { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.brand-mark { flex: 0 0 auto; fill: var(--accent); }
+.title-block h1 { font-size: 18px; letter-spacing: .02em; }
+.title-block .sub { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+
+/* 學分進度：數字一行、進度條一行 */
+.progress { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ledger { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+.ledger .lab { font-size: 12px; color: var(--ink-soft); }
+.ledger .num { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.ledger .of { font-size: 13px; color: var(--ink-soft); }
+.ledger .pct { font-size: 11px; color: var(--ink-soft); background: var(--paper); border-radius: 99px; padding: 1px 7px; }
+.ledger .remain { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--brass); }
+.progress-bar { display: block; width: 100%; height: 8px; border-radius: 99px; overflow: hidden; }
+.progress-bar line { stroke-width: 8; }
+.progress-bar .track { stroke: #E9ECF1; }
+#sealRing { stroke: var(--accent); transition: stroke-dashoffset .3s ease; }
+
+/* flex-shrink 要是 1：窄螢幕時這一區才會縮，按鈕自動換行，而不是把整頁撐寬 */
+.file-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; }
 
 /* ── Layout ─────────────────────────────── */
 .layout { display: grid; grid-template-columns: 340px 1fr; flex: 1 1 auto; min-height: 0; }
-.sidebar { padding: 22px; border-right: 2px solid var(--ink); background: var(--paper-dark); height: 100%; overflow-y: auto; }
-.main { padding: 22px 26px; height: 100%; overflow-y: auto; }
+.sidebar { padding: 20px; border-right: 1px solid var(--hairline); background: var(--paper); height: 100%; overflow-y: auto; }
+.main { padding: 22px 28px; height: 100%; overflow-y: auto; }
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; flex: none; }
   .sidebar, .main { height: auto; overflow: visible; border-right: none; }
-  .sidebar { border-bottom: 2px solid var(--ink); }
+  .sidebar { border-bottom: 1px solid var(--hairline); }
+  .topbar { padding: 12px 16px; }
+  .sidebar { padding: 16px; }
+  .main { padding: 18px 16px; }
 }
 
 .section-label {
-  font-family: 'Source Serif 4', serif; font-size: 15px; font-weight: 600;
+  font-family: var(--font-sans); font-size: 14px; font-weight: 700;
   display: flex; align-items: center; gap: 8px; margin: 0 0 10px;
 }
-.section-label .n {
-  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
-  background: var(--ink); color: var(--paper); width: 18px; height: 18px;
-  border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
-}
+/* 舊版的「1、2、3…」步驟圓點：新版改用卡片分區，不再顯示 */
+.section-label .n { display: none; }
 .section-label .spacer { flex: 1; }
+.main > .section-label { font-size: 18px; flex-wrap: wrap; }
 
-.card-box { background: var(--card); border: 1px solid var(--hairline); border-radius: 3px; padding: 15px; margin-bottom: 18px; }
-label { display: block; font-size: 11px; color: var(--ink-soft); letter-spacing: .05em; margin: 10px 0 4px; }
+.card-box { background: var(--card); border: 1px solid var(--hairline); border-radius: 14px; padding: 16px; margin-bottom: 18px; }
+label { display: block; font-size: 12px; color: var(--ink-soft); letter-spacing: .02em; margin: 12px 0 5px; }
 label:first-child { margin-top: 0; }
 input[type=text], input[type=number], select, textarea {
-  width: 100%; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: 2px;
-  background: #fff; font-family: 'Inter', system-ui, sans-serif; font-size: 13.5px; color: var(--ink);
+  width: 100%; padding: 9px 12px; border: 1px solid var(--hairline); border-radius: 10px;
+  background: #fff; font-family: var(--font-sans); font-size: 13.5px; color: var(--ink);
 }
+input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-tint); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-button { font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; border: none; border-radius: 2px; padding: 9px 14px; transition: filter .15s; }
+button { font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; border: none; border-radius: 10px; padding: 9px 14px; transition: filter .15s, background-color .15s, border-color .15s; }
 button:hover { filter: brightness(1.08); }
-.btn-primary { background: var(--maroon); color: #fff; width: 100%; margin-top: 12px; }
-.btn-ghost { background: transparent; border: 1px solid var(--hairline); color: var(--ink); }
-.btn-small { padding: 5px 9px; font-size: 11px; }
-.link-btn { background: none; border: none; padding: 0; font-size: 11px; color: var(--navy); text-decoration: underline; font-weight: 600; }
+.btn-primary { background: var(--accent); color: #fff; width: 100%; margin-top: 12px; min-height: 40px; }
+.btn-ghost { background: var(--card); border: 1px solid var(--hairline); color: var(--ink); }
+.btn-ghost:hover { filter: none; background: var(--paper); border-color: #C9CED7; }
+.btn-small { padding: 6px 12px; font-size: 12.5px; font-weight: 500; min-height: 36px; }
+.link-btn { background: none; border: none; padding: 0; font-size: 12px; color: var(--accent); text-decoration: underline; font-weight: 600; }
 .del-x { background: none; border: none; color: var(--ink-soft); font-size: 15px; line-height: 1; padding: 2px 4px; }
 .del-x:hover { color: var(--danger); }
-.footnote { font-size: 11px; color: var(--ink-soft); line-height: 1.6; margin-top: 6px; }
+.footnote { font-size: 12px; color: var(--ink-soft); line-height: 1.6; margin-top: 6px; }
 .empty-note { font-size: 12px; color: var(--ink-soft); font-style: italic; padding: 6px 2px; }
 
 /* ── 課程卡片 ───────────────────────────── */
+/* 左側色條的顏色由 pool.js 以 inline style 帶入（標籤顏色），這裡只管粗細與圓角 */
 .chip {
-  display: flex; align-items: center; gap: 7px; background: #fff;
-  border: 1px solid var(--hairline); border-left: 5px solid var(--grey);
-  border-radius: 2px; padding: 6px 8px; margin-bottom: 6px;
-  cursor: grab; user-select: none; font-size: 12.5px;
+  display: flex; align-items: center; gap: 8px; background: #fff;
+  border: 1px solid var(--hairline); border-left: 4px solid var(--grey);
+  border-radius: 10px; padding: 8px 8px 8px 10px; margin-bottom: 6px;
+  cursor: grab; user-select: none; font-size: 13px;
+  transition: border-color .15s, box-shadow .15s;
 }
+.chip:hover { border-top-color: #C9CED7; border-right-color: #C9CED7; border-bottom-color: #C9CED7; }
 .chip:active { cursor: grabbing; }
-.chip.selected { box-shadow: 0 0 0 2px var(--brass) inset; }
+.chip.selected { box-shadow: 0 0 0 2px var(--accent); background: #F5F7FE; }
 .chip.dragging { opacity: .4; }
 .chip .body { flex: 1; min-width: 0; }
-.chip .name { font-weight: 500; line-height: 1.25; }
-.chip .tag-line { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
-.chip .credit { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-soft); flex: 0 0 auto; }
+.chip .name { font-weight: 500; line-height: 1.3; }
+.chip .tag-line { display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+.chip .credit { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--ink); flex: 0 0 auto; }
 .chip select.tag-pick {
-  font-size: 10px; padding: 1px 3px; border: 1px solid var(--hairline);
-  border-radius: 8px; background: var(--paper); width: auto; max-width: 110px; color: var(--ink-soft);
+  font-size: 11px; padding: 1px 6px; border: 1px solid var(--hairline);
+  border-radius: 99px; background: var(--paper); width: auto; max-width: 120px; color: var(--ink-soft);
 }
 .chip .warn-dot { color: var(--danger); font-size: 11px; font-weight: 700; }
 
-.pool-dropzone { border: 1.5px dashed var(--hairline); border-radius: 3px; padding: 8px; min-height: 44px; }
-.pool-dropzone.drag-over { background: #F4EBD0; border-color: var(--brass); }
-.search-box { margin-bottom: 10px; }
+.pool-dropzone { border: 1.5px dashed #D3D8E0; border-radius: 14px; padding: 8px; min-height: 44px; }
+.pool-dropzone.drag-over { background: var(--accent-tint); border-color: var(--accent); }
+/* 放大鏡圖示是內嵌在 CSS 裡的 SVG（data URI），不另外載入檔案 */
+input.search-box {
+  margin-bottom: 10px; padding-left: 36px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235A6170' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 12px 50%;
+}
 
 /* ── 學期表 ─────────────────────────────── */
-.grid4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-@media (max-width: 640px) { .grid4 { grid-template-columns: 1fr; } }
-.sem-card { background: var(--card); border: 1px solid var(--hairline); border-radius: 3px; display: flex; flex-direction: column; min-height: 140px; }
-.sem-head { display: flex; align-items: center; justify-content: space-between; padding: 7px 11px; border-bottom: 1px solid var(--hairline); background: var(--paper-dark); }
-.sem-head h3 { font-size: 13.5px; }
-.sem-head .credit-badge { font-family: 'IBM Plex Mono', monospace; font-size: 12px; background: var(--ink); color: var(--paper); padding: 2px 8px; border-radius: 9px; }
-.sem-body { flex: 1; padding: 9px; }
-.sem-body.drag-over { background: #F4EBD0; outline: 2px dashed var(--brass); outline-offset: -4px; }
-.drop-hint { font-size: 11px; color: var(--ink-soft); text-align: center; padding: 16px 4px; border: 1.5px dashed var(--hairline); border-radius: 3px; }
+/* 每張卡至少 236px 寬，放得下幾欄就排幾欄（寬螢幕 4 欄、手機 1 欄）。
+   min(236px, 100%)：螢幕比 236px 還窄時就用滿寬，不會把頁面撐出橫向捲軸 */
+.grid4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(236px, 100%), 1fr)); gap: 14px; }
+.sem-card { background: var(--card); border: 1px solid var(--hairline); border-radius: 14px; display: flex; flex-direction: column; min-height: 220px; overflow: hidden; }
+.sem-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 10px 10px 10px 14px; border-bottom: 1px solid #EEF0F3; background: transparent; }
+.sem-head h3 { font-size: 15px; }
+.sem-head .credit-badge { font-size: 12px; font-weight: 600; background: var(--paper); color: var(--ink); padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+.sem-body { flex: 1; padding: 10px; }
+.sem-body.drag-over { background: var(--accent-tint); outline: 2px dashed var(--accent); outline-offset: -6px; }
+.drop-hint { font-size: 12px; color: #6B7280; text-align: center; padding: 14px 4px; border: 1.5px dashed #D3D8E0; border-radius: 10px; }
 
 /* ── 判定結果 ───────────────────────────── */
-.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--ink); margin-bottom: 14px; }
+/* 分頁標籤：跟「列表／週課表」同一種分段按鈕 */
+.tabs { display: inline-flex; gap: 2px; padding: 3px; background: #E9ECF1; border-radius: 10px; margin-bottom: 14px; }
 .tabs button {
-  background: none; border: none; border-bottom: 3px solid transparent;
-  padding: 8px 16px; font-size: 13px; color: var(--ink-soft); border-radius: 0; margin-bottom: -2px;
+  background: transparent; border: none; border-radius: 8px;
+  padding: 6px 14px; min-height: 34px; font-size: 13px; font-weight: 500; color: var(--ink-soft);
 }
-.tabs button[aria-selected="true"] { color: var(--maroon); border-bottom-color: var(--maroon); font-weight: 700; }
-.tabs .flag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; margin-left: 6px; }
+.tabs button:hover { filter: none; color: var(--ink); }
+.tabs button[aria-selected="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(21, 24, 30, .12); }
+.tabs .flag { font-family: var(--font-mono); font-size: 12px; margin-left: 6px; color: var(--ink-soft); }
 
-.cat-block { margin-bottom: 14px; border: 1px solid var(--hairline); border-radius: 3px; background: var(--card); overflow: hidden; }
-.cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; font-weight: 700; color: #fff; padding: 6px 11px; }
-.cat-head .num { font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
-.bkt-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border-bottom: 1px solid var(--hairline); font-size: 12.5px; }
+/* 大類卡片。標題列的底色由 report.js 以 inline style 帶入（該大類的顏色） */
+.cat-block { margin-bottom: 14px; border: 1px solid var(--hairline); border-radius: 14px; background: var(--card); overflow: hidden; }
+.cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; font-weight: 700; color: #fff; padding: 10px 14px; }
+.cat-head .num { font-family: var(--font-mono); font-weight: 700; }
+.bkt-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #EEF0F3; font-size: 13px; }
 .bkt-row:last-child { border-bottom: none; }
 .bkt-row .bk-name { flex: 1; min-width: 0; }
-.bkt-row .bk-note { display: block; font-size: 10.5px; color: var(--ink-soft); font-style: italic; margin-top: 2px; }
-.bkt-row .bk-num { font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap; }
-.bkt-row.met .bk-num { color: var(--green); font-weight: 600; }
+.bkt-row .bk-note { display: block; font-size: 11.5px; color: var(--ink-soft); font-style: normal; margin-top: 2px; }
+.bkt-row .bk-num { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+.bkt-row.met .bk-num { color: var(--green); font-weight: 700; }
 .bkt-row.off { opacity: .5; }
-.bar { height: 4px; background: var(--paper-dark); border-radius: 2px; overflow: hidden; width: 64px; flex: 0 0 auto; }
-.bar span { display: block; height: 100%; background: var(--brass); }
+.bar { height: 6px; background: #E9ECF1; border-radius: 99px; overflow: hidden; width: 72px; flex: 0 0 auto; }
+.bar span { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 .bar span.full { background: var(--green); }
-.tag-pill { display: inline-block; font-size: 9.5px; padding: 1px 6px; border-radius: 8px; color: #fff; margin-right: 4px; white-space: nowrap; }
-.check-line { font-size: 11px; padding: 2px 11px 6px; color: var(--ink-soft); }
+.tag-pill { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 99px; color: #fff; margin-right: 4px; white-space: nowrap; }
+.check-line { font-size: 12px; padding: 2px 14px 8px; color: var(--ink-soft); }
 .check-line.bad { color: var(--danger); }
 
-details.course-detail { margin: 0 11px 8px; font-size: 11.5px; }
-details.course-detail summary { cursor: pointer; color: var(--navy); font-size: 10.5px; padding: 3px 0; list-style: none; }
+details.course-detail { margin: 0 14px 10px; font-size: 12px; }
+details.course-detail summary { cursor: pointer; color: var(--accent); font-size: 12px; font-weight: 500; padding: 4px 0; list-style: none; }
 details.course-detail summary::-webkit-details-marker { display: none; }
 details.course-detail summary::before { content: '▸ '; }
 details.course-detail[open] summary::before { content: '▾ '; }
-.cd-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 8px; border-left: 2px solid var(--hairline); }
-.cd-num { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
-.cd-flag { font-size: 9.5px; padding: 1px 5px; border-radius: 8px; background: var(--brass); color: #fff; margin-left: 5px; }
+.cd-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 10px; border-radius: 6px; }
+.cd-row:nth-child(odd) { background: var(--paper); }
+.cd-num { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.cd-flag { font-size: 10.5px; padding: 1px 6px; border-radius: 99px; background: var(--warn-tint); color: var(--warn-ink); margin-left: 5px; }
 
 /* 科目判定 */
-.subj-group { border: 1px solid var(--hairline); border-radius: 3px; background: var(--card); margin-bottom: 12px; overflow: hidden; }
-.subj-head { display: flex; align-items: center; gap: 9px; padding: 8px 11px; background: var(--paper-dark); border-bottom: 1px solid var(--hairline); font-size: 13px; font-weight: 600; }
-.subj-head .status { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; margin-left: auto; white-space: nowrap; }
-.subj-head.done { background: #E9F0E6; }
-.subj-head.done .status { color: var(--green); }
-.subj-note { font-size: 10.5px; color: var(--ink-soft); font-style: italic; font-weight: 400; }
-.subj-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 2px 14px; padding: 9px 11px; }
-.subj-item { display: flex; align-items: baseline; gap: 7px; font-size: 12.5px; padding: 3px 0; }
-.subj-item .mark { font-family: 'IBM Plex Mono', monospace; width: 14px; flex: 0 0 auto; color: var(--hairline); }
+.subj-group { border: 1px solid var(--hairline); border-radius: 14px; background: var(--card); margin-bottom: 12px; overflow: hidden; }
+.subj-head { display: flex; align-items: center; gap: 9px; padding: 10px 14px; background: transparent; border-bottom: 1px solid #EEF0F3; font-size: 14px; font-weight: 700; }
+.subj-head .status { font-family: var(--font-mono); font-size: 12px; margin-left: auto; white-space: nowrap; color: var(--ink-soft); }
+.subj-head.done { background: var(--ok-tint); }
+.subj-head.done .status { color: var(--green); font-weight: 700; }
+.subj-note { font-size: 11.5px; color: var(--ink-soft); font-style: normal; font-weight: 400; }
+.subj-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 2px 16px; padding: 10px 14px; }
+.subj-item { display: flex; align-items: baseline; gap: 7px; font-size: 13px; padding: 3px 0; }
+.subj-item .mark { font-family: var(--font-mono); width: 14px; flex: 0 0 auto; color: #A3A9B5; }
 .subj-item.checked .mark { color: var(--green); font-weight: 700; }
 .subj-item.checked .nm { color: var(--ink); }
-.subj-item .nm { flex: 1; color: var(--ink-soft); line-height: 1.35; }
-.subj-item .sem { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-soft); }
-.subj-item .mismatch { color: var(--danger); font-size: 10px; }
-.subj-sub { padding: 0 11px 8px; }
-.subj-sub-head { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); padding: 7px 0 2px; border-top: 1px solid var(--hairline); display: flex; gap: 8px; }
-.subj-sub-head .status { margin-left: auto; font-family: 'IBM Plex Mono', monospace; }
+.subj-item .nm { flex: 1; color: var(--ink-soft); line-height: 1.4; }
+.subj-item .sem { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
+.subj-item .mismatch { color: var(--danger); font-size: 10.5px; }
+.subj-sub { padding: 0 14px 10px; }
+.subj-sub-head { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); padding: 8px 0 2px; border-top: 1px solid #EEF0F3; display: flex; gap: 8px; }
+.subj-sub-head .status { margin-left: auto; font-family: var(--font-mono); }
 
-.notice { border-left: 4px solid var(--brass); background: #FBF0E4; padding: 9px 11px; margin-bottom: 12px; font-size: 11.5px; line-height: 1.65; border-radius: 2px; }
-.notice.pass { border-color: var(--green); background: #E9F0E6; }
-.notice.bad { border-color: var(--danger); background: #F7E9E7; }
+/* 提醒框：圓角卡片，用底色與細框分出種類（橘＝提醒、綠＝達成、紅＝有問題） */
+.notice { border: 1px solid #F3C9A8; background: var(--warn-tint); color: var(--warn-ink); padding: 10px 14px; margin-bottom: 12px; font-size: 13px; line-height: 1.65; border-radius: 12px; }
+.notice.pass { border-color: #B7DCD8; background: var(--ok-tint); color: #0B5E57; }
+.notice.bad { border-color: #F4C1BC; background: var(--danger-tint); color: #8A1C12; }
 .notice b { font-weight: 700; }
 
 /* ── 標籤設定 ───────────────────────────── */
-.overlay { position: fixed; inset: 0; background: rgba(30,26,20,.45); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.modal { background: var(--paper); border: 1px solid var(--hairline); box-shadow: 0 10px 40px rgba(0,0,0,.22); width: min(680px, 100%); max-height: 86vh; overflow-y: auto; padding: 20px; }
-.modal h3 { font-size: 15px; margin-bottom: 4px; }
-.modal .sub { font-size: 11.5px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.6; }
-.tag-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.tag-table th { text-align: left; font-size: 10.5px; color: var(--ink-soft); letter-spacing: .05em; font-weight: 600; padding: 5px 6px; border-bottom: 1px solid var(--hairline); }
-.tag-table td { padding: 5px 6px; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
-.tag-table input[type=text] { padding: 5px 7px; font-size: 12.5px; }
-.tag-table input[type=color] { width: 32px; height: 28px; padding: 1px; border: 1px solid var(--hairline); background: #fff; border-radius: 2px; }
-.tag-table select { padding: 5px 6px; font-size: 12px; }
-.tag-table td.count { font-family: 'IBM Plex Mono', monospace; color: var(--ink-soft); text-align: right; white-space: nowrap; }
-.modal-actions { display: flex; gap: 8px; margin-top: 16px; align-items: center; }
+.overlay { position: fixed; inset: 0; background: rgba(21,24,30,.45); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: var(--card); border: 1px solid var(--hairline); border-radius: 16px; box-shadow: 0 16px 48px rgba(21, 24, 30, .22); width: min(680px, 100%); max-height: 86vh; overflow-y: auto; padding: 22px; }
+.modal h3 { font-size: 17px; margin-bottom: 4px; }
+.modal .sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.6; }
+.tag-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tag-table th { text-align: left; font-size: 11.5px; color: var(--ink-soft); letter-spacing: .02em; font-weight: 600; padding: 6px; border-bottom: 1px solid var(--hairline); }
+.tag-table td { padding: 6px; border-bottom: 1px solid #EEF0F3; vertical-align: middle; }
+.tag-table input[type=text] { padding: 6px 9px; font-size: 13px; }
+.tag-table input[type=color] { width: 34px; height: 30px; padding: 2px; border: 1px solid var(--hairline); background: #fff; border-radius: 8px; }
+.tag-table select { padding: 6px 8px; font-size: 12.5px; }
+.tag-table td.count { font-family: var(--font-mono); color: var(--ink-soft); text-align: right; white-space: nowrap; }
+.modal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
 .modal-actions .spacer { flex: 1; }
 
 .toast {
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
-  background: var(--ink); color: var(--paper); padding: 9px 18px; border-radius: 3px;
-  font-size: 12.5px; z-index: 950; box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 10px;
+  font-size: 13px; z-index: 950; box-shadow: 0 8px 24px rgba(21, 24, 30, .25);
+  max-width: calc(100vw - 32px);
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 /* ── 身分別勾選 ─────────────────────────── */
 .pick-group {
-  border: 1px solid var(--hairline); border-radius: 2px;
+  border: 1px solid var(--hairline); border-radius: 10px;
   background: #fff; padding: 8px 10px 10px; margin: 0 0 12px;
 }
 .pick-group legend {
-  font-size: 11px; color: var(--ink-soft); letter-spacing: .05em; padding: 0 5px;
+  font-size: 12px; color: var(--ink-soft); letter-spacing: .02em; padding: 0 5px;
 }
 .pick-row {
   display: flex; align-items: center; gap: 8px;
-  margin: 0; padding: 6px 4px; font-size: 12.5px;
+  margin: 0; padding: 8px 6px; font-size: 13px;
   text-transform: none; letter-spacing: normal; color: var(--ink);
-  border-bottom: 1px solid var(--hairline); cursor: pointer;
+  border-bottom: 1px solid var(--hairline); border-radius: 6px; cursor: pointer;
 }
 .pick-row:last-of-type { border-bottom: none; }
 .pick-row:hover { background: var(--paper); }
@@ -237,14 +273,14 @@ details.course-detail[open] summary::before { content: '▾ '; }
 }
 
 .data-warn {
-  background: #FBF0E4; border-left: 4px solid var(--brass);
-  padding: 8px 10px; margin-bottom: 12px; border-radius: 2px;
-  font-size: 11px; line-height: 1.6; color: var(--ink);
+  background: var(--warn-tint); border: 1px solid #F3C9A8;
+  padding: 9px 12px; margin-bottom: 12px; border-radius: 10px;
+  font-size: 12px; line-height: 1.6; color: var(--warn-ink);
 }
 
 .credit-sum {
-  margin-top: 12px; padding: 9px 10px;
-  background: var(--paper-dark); border-radius: 2px; font-size: 12px;
+  margin-top: 12px; padding: 10px 12px;
+  background: var(--paper); border-radius: 10px; font-size: 12.5px;
 }
 .credit-sum .cs-row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; color: var(--ink-soft); }
 .credit-sum .cs-row.total {
@@ -255,16 +291,16 @@ details.course-detail[open] summary::before { content: '▾ '; }
 /* 學期表卡片上的「移回待排」按鈕 */
 .chip-btn {
   background: none; border: 1px solid var(--hairline); color: var(--ink-soft);
-  border-radius: 2px; padding: 2px 6px; font-size: 12px; line-height: 1.2;
+  border-radius: 8px; padding: 3px 7px; font-size: 12px; line-height: 1.2;
   flex: 0 0 auto; font-weight: 400;
 }
-.chip-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--paper); }
+.chip-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--paper); }
 
 /* 科目有排到但學分算在別的領域 */
 .stray-note {
-  font-size: 11px; line-height: 1.6; color: var(--ink);
-  background: #FBF0E4; border-left: 3px solid var(--brass);
-  padding: 7px 10px; margin: 8px 11px 0; border-radius: 2px;
+  font-size: 12px; line-height: 1.6; color: var(--warn-ink);
+  background: var(--warn-tint); border: 1px solid #F3C9A8;
+  padding: 8px 12px; margin: 10px 14px 0; border-radius: 10px;
 }
 .subj-item .mismatch {
   font-size: 10px; color: var(--brass); font-weight: 600; white-space: nowrap;
@@ -273,21 +309,29 @@ details.course-detail[open] summary::before { content: '▾ '; }
 .build-stamp {
   display: inline-block; margin-left: 8px; padding: 1px 7px;
   border: 1px solid var(--hairline); border-radius: 9px;
-  font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-soft);
+  font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft);
 }
 
 
 /* 自動保存開關 */
 .persist-toggle {
-  display: flex; align-items: center; gap: 6px; margin: 0;
-  padding: 4px 9px; border: 1px solid var(--hairline); border-radius: 2px;
-  font-size: 11.5px; color: var(--ink-soft); letter-spacing: normal;
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  min-height: 36px; padding: 3px 12px 3px 8px; border: 1px solid var(--hairline); border-radius: 10px;
+  font-size: 12.5px; font-weight: 500; color: var(--ink); letter-spacing: normal;
   text-transform: none; cursor: pointer; white-space: nowrap; background: #fff;
 }
-.persist-toggle:hover { border-color: var(--navy); color: var(--navy); }
-.persist-toggle input { width: auto; margin: 0; accent-color: var(--maroon); }
+.persist-toggle:hover { border-color: #C9CED7; background: var(--paper); }
+/* 底下仍是原本的 checkbox（JS 與測試都靠它），只是用 CSS 畫成開關：
+   appearance: none 拿掉瀏覽器內建的勾選框外觀，白色圓點用漸層畫，勾選時從左滑到右 */
+.persist-toggle input {
+  appearance: none; -webkit-appearance: none;
+  width: 30px; height: 18px; margin: 0; flex: 0 0 auto; cursor: pointer;
+  border-radius: 99px; background: radial-gradient(circle at 9px 50%, #fff 6px, transparent 6.5px) #C9CED7;
+  transition: background-color .15s;
+}
+.persist-toggle input:checked { background: radial-gradient(circle at 21px 50%, #fff 6px, transparent 6.5px) var(--accent); }
 .persist-toggle span { display: flex; flex-direction: column; line-height: 1.25; }
-.persist-toggle small { font-size: 9.5px; opacity: .75; }
+.persist-toggle small { font-size: 11px; font-weight: 400; color: var(--ink-soft); }
 
 /* 新增課程的第二層細分選單 */
 select.detail-pick { border-color: var(--brass); }
@@ -299,9 +343,9 @@ select.detail-pick { border-color: var(--brass); }
 .chip .note-btn {
   background: none; border: none; flex: 0 0 auto;
   padding: 0 2px; font-size: 11px; line-height: 1; font-weight: 400;
-  color: var(--hairline);
+  color: #A3A9B5;
 }
-.chip .note-btn:hover { color: var(--navy); }
+.chip .note-btn:hover { color: var(--accent); }
 /* 已有備註時把筆的顏色點亮，一眼看得出哪幾門課寫過東西 */
 .chip .note-btn.on { color: var(--brass); }
 /* 備註貼在課名右邊那塊空白；空間不夠時整段自動掉到下一行 */
@@ -322,33 +366,34 @@ select.detail-pick { border-color: var(--brass); }
 }
 .chip .note-count {
   display: block; text-align: right; margin-top: 1px;
-  font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--ink-soft);
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-soft);
 }
 
 /* ── 學期鎖定 ───────────────────────────── */
 /* 標題與學分之間的彈性空白，讓鎖頭貼在「大一上」右邊 */
 .sem-head .spacer { flex: 1; }
 .lock-btn {
-  background: none; border: 1px solid transparent; border-radius: 2px;
-  padding: 2px 4px 0; line-height: 0; flex: 0 0 auto;
+  background: none; border: 1px solid transparent; border-radius: 8px;
+  width: 30px; height: 30px; padding: 0; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
   /* 圖示是 SVG，顏色就吃這一行的 color */
-  color: var(--ink-soft);
-  transition: color .15s;
+  color: #8A919E;
+  transition: color .15s, background-color .15s;
 }
 /* 滑鼠移上去變黑，提示「這顆可以按」 */
-.lock-btn:hover { color: var(--ink); border-color: var(--hairline); background: #fff; }
+.lock-btn:hover { filter: none; color: var(--ink); background: var(--paper); }
+/* 已鎖定：深色實心按鈕，一眼看出這學期是鎖住的 */
+.lock-btn.on { background: var(--navy); color: #fff; }
+.lock-btn.on:hover { background: var(--ink); color: #fff; }
 
-.sem-card.locked { border-color: var(--navy); }
-.sem-card.locked .sem-head { background: #DCE3EC; border-bottom-color: var(--navy); }
-.sem-card.locked .sem-head h3 { color: var(--navy); }
-.sem-card.locked .credit-badge { background: var(--navy); }
-.sem-card.locked .sem-body { background: #F1F4F8; }
-/* 鎖住的卡片：拿掉「可拖曳」的手勢與白底，看得清楚但明顯不能動 */
-.sem-card.locked .chip { cursor: default; background: #FAFBFD; border-color: #C6CFDC; }
+.sem-card.locked { background: #F9FAFB; }
+.sem-card.locked .sem-body { background: transparent; }
+/* 鎖住的卡片：拿掉「可拖曳」的手勢，課程卡維持白底，看得清楚但明顯不能動 */
+.sem-card.locked .chip { cursor: default; background: #fff; border-color: #E2E5EA; }
 .sem-card.locked .chip select.tag-pick {
   background: transparent; border-color: transparent; appearance: none; padding-right: 3px;
 }
-.sem-card.locked .drop-hint { border-style: solid; border-color: #C6CFDC; }
+.sem-card.locked .drop-hint { border-style: solid; border-color: #D3D8E0; }
 
 /* ── 側欄收起 ───────────────────────────── */
 /* 展開時：側欄照常佔左邊一欄，只是頂端多一顆「收起側欄」 */
@@ -371,9 +416,9 @@ select.detail-pick { border-color: var(--brass); }
   display: flex; justify-content: center; align-items: flex-start;
   position: absolute; top: 0; bottom: 0; left: 0; z-index: 40; width: 12px;
   padding-top: 24px; font-size: 11px; color: var(--ink-soft);
-  background: var(--paper-dark); border-right: 2px solid var(--ink);
+  background: var(--card); border-right: 1px solid var(--hairline);
 }
-.layout.sidebar-collapsed .sidebar-edge:hover { background: #F4EBD0; color: var(--ink); }
+.layout.sidebar-collapsed .sidebar-edge:hover { background: var(--accent-tint); color: var(--ink); }
 .layout.sidebar-collapsed .main { padding-left: 34px; }
 
 /* 浮出：滑鼠在細邊或側欄上、鍵盤焦點在側欄裡、或拖著課程碰到細邊 */
@@ -381,7 +426,7 @@ select.detail-pick { border-color: var(--brass); }
 .layout.sidebar-collapsed .sidebar:hover,
 .layout.sidebar-collapsed .sidebar:focus-within,
 .layout.sidebar-collapsed.sidebar-peek .sidebar {
-  transform: none; box-shadow: 6px 0 24px rgba(30, 26, 20, .22);
+  transform: none; box-shadow: 6px 0 24px rgba(21, 24, 30, .18);
 }
 /* 強制收回：剛按下「收起」游標還停在側欄上時、拖著課程移進課表時。
    要寫在「浮出」後面，兩條規則一樣具體時後面的才會贏 */
@@ -401,75 +446,82 @@ select.detail-pick { border-color: var(--brass); }
 /* ── 列表／週課表切換 ───────────────────── */
 /* .grid4 自己有 display:grid，會蓋過 hidden 屬性，所以要明寫 */
 .grid4[hidden] { display: none; }
+/* 分段按鈕：灰色軌道裡，選中的那一段浮起成白底 */
 .view-toggle {
-  display: inline-flex; margin-left: 10px; border: 1px solid var(--ink); border-radius: 2px; overflow: hidden;
-  font-family: 'Inter', system-ui, sans-serif;
+  display: inline-flex; margin-left: 8px; padding: 3px; gap: 2px;
+  background: #E9ECF1; border-radius: 10px;
+  font-family: var(--font-sans);
 }
 .view-toggle button {
-  background: transparent; border: none; border-radius: 0; padding: 3px 11px;
-  font-size: 11.5px; font-weight: 500; color: var(--ink-soft);
+  background: transparent; border: none; border-radius: 8px; padding: 6px 14px; min-height: 32px;
+  font-size: 13px; font-weight: 500; color: var(--ink-soft);
 }
-.view-toggle button + button { border-left: 1px solid var(--ink); }
-.view-toggle button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.view-toggle button:hover { filter: none; color: var(--ink); }
+.view-toggle button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(21, 24, 30, .12); }
 
 /* ── 週課表 ─────────────────────────────── */
+/* 週課表的卡片裡有一整張表，太窄會擠，所以每張至少 440px（手機上用滿寬） */
+.week-grid { grid-template-columns: repeat(auto-fill, minmax(min(440px, 100%), 1fr)); }
 .wk-card { min-height: 0; }
-.wk-card.clash { border-color: var(--danger); }
-.wk-card.drag-over { background: #F4EBD0; outline: 2px dashed var(--brass); outline-offset: -3px; }
-.wk-term { font-size: 11px; color: var(--ink-soft); margin-left: 6px; }
+/* 衝堂用橘色（提醒），不用紅色：紅色留給刪除、錯誤 */
+.wk-card.clash { border-color: #F3C9A8; box-shadow: 0 0 0 1px #F3C9A8; }
+.wk-card.drag-over { background: var(--accent-tint); outline: 2px dashed var(--accent); outline-offset: -4px; }
+.wk-term { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); margin-left: 4px; }
 .wk-clash-badge {
-  font-size: 11px; font-weight: 600; color: #fff; background: var(--danger);
-  padding: 2px 8px; border-radius: 9px; margin-right: 6px;
+  font-size: 11px; font-weight: 700; color: #fff; background: var(--brass);
+  padding: 2px 8px; border-radius: 99px; margin-right: 2px; white-space: nowrap;
 }
-.wk-body { padding: 8px 9px 9px; }
+.wk-body { padding: 10px 12px 12px; }
 /* 時段是參考別的學期時的提醒 */
 .wk-note {
-  font-size: 11px; color: #7A5A12; background: #FBF0E4;
-  border-left: 3px solid var(--brass); border-radius: 0; padding: 3px 7px; margin-bottom: 6px;
+  font-size: 12px; color: var(--warn-ink); background: var(--warn-tint);
+  border: 1px solid #F3C9A8; border-radius: 8px; padding: 5px 9px; margin-bottom: 8px;
 }
-.wk-clash-line { font-size: 11px; font-weight: 600; color: var(--danger); margin-bottom: 4px; }
+.wk-clash-line { font-size: 12px; font-weight: 600; color: var(--warn-ink); margin-bottom: 6px; }
 
 .tt { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.tt th { font-size: 10.5px; font-weight: 600; color: var(--ink-soft); padding: 2px 0; }
-.tt th.tt-p { width: 18px; font-family: 'IBM Plex Mono', monospace; font-weight: 500; }
-.tt td { border: 1px solid var(--hairline); height: 20px; padding: 1px; vertical-align: top; background: #fff; }
+.tt th { font-size: 12px; font-weight: 600; color: var(--ink-soft); padding: 4px 0; }
+.tt th.tt-p { width: 22px; font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+.tt td { border: 1px solid #EEF0F3; height: 24px; padding: 1px; vertical-align: top; background: #fff; }
 /* 中午 n、晚上 a–c：灰底，一眼分出白天和其他時段 */
-.tt tr.quiet td { background: var(--paper); }
-.tt td.clash { background: #F7E9E7; border-color: var(--danger); }
+.tt tr.quiet td { background: #F6F7F9; }
+.tt td.clash { background: var(--warn-tint); border: 1.5px dashed var(--brass); }
+/* 左側色條的顏色由 week.js 以 inline style 帶入（標籤顏色） */
 .tt-block {
-  font-size: 10.5px; line-height: 1.35; padding: 1px 3px;
-  background: var(--card); border-left: 3px solid var(--grey); border-radius: 0;
+  font-size: 11px; line-height: 1.4; padding: 2px 5px;
+  background: var(--paper); border-left: 3px solid var(--grey); border-radius: 5px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: grab;
 }
 .tt-block + .tt-block { margin-top: 1px; }
-.tt td.clash .tt-block { background: #FBEDEB; color: var(--danger); font-weight: 600; }
-.tt-block:hover { background: #F4EBD0; }
+.tt td.clash .tt-block { background: #fff; color: var(--warn-ink); font-weight: 600; }
+.tt-block:hover { background: var(--accent-tint); }
 .tt-block.dragging { opacity: .4; }
-.tt-block.selected { box-shadow: 0 0 0 2px var(--brass) inset; }
+.tt-block.selected { box-shadow: 0 0 0 2px var(--accent) inset; }
 .sem-card.locked .tt-block { cursor: default; }
-.sem-card.locked .tt td { background: #F1F4F8; }
+.sem-card.locked .tt td { background: #F9FAFB; }
 
 /* 未定時段：沿用一般課程卡，右邊加一顆「選班」 */
-.wk-tray { margin-top: 8px; }
-.wk-tray-label { font-size: 10.5px; color: var(--ink-soft); letter-spacing: .05em; margin-bottom: 4px; }
-.wk-unplaced { display: flex; align-items: center; gap: 6px; }
-.wk-unplaced .chip { flex: 1; min-width: 0; margin-bottom: 4px; }
+.wk-tray { margin-top: 10px; }
+.wk-tray-label { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
+/* 空間不夠時「選班」按鈕自動掉到課程卡下一行，不把課程卡擠扁 */
+.wk-unplaced { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; }
+.wk-unplaced .chip { flex: 1 1 200px; min-width: 0; margin-bottom: 6px; }
 .wk-pick {
-  flex: 0 0 auto; margin-bottom: 4px; padding: 3px 7px; font-size: 10.5px; white-space: nowrap;
-  border: 1px solid var(--navy); border-radius: 2px; background: #fff; color: var(--navy);
+  flex: 0 0 auto; margin-bottom: 6px; padding: 6px 12px; font-size: 12px; font-weight: 500; white-space: nowrap;
+  border: 1px solid var(--hairline); border-radius: 8px; background: #fff; color: var(--ink);
 }
-.wk-pick:hover { background: var(--navy); color: #fff; }
-.wk-pick-note { flex: 0 0 auto; margin-bottom: 4px; font-size: 10.5px; color: var(--ink-soft); white-space: nowrap; }
-.wk-empty { margin-top: 8px; }
+.wk-pick:hover { filter: none; border-color: var(--accent); color: var(--accent); }
+.wk-pick-note { flex: 0 0 auto; margin-bottom: 6px; font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+.wk-empty { margin-top: 10px; }
 
 /* ── 選班視窗 ───────────────────────────── */
 /* 全站的 label 是小字欄位標題，這裡的 label 是整列可點的選項，要整個改回來 */
 .sec-row {
   display: flex; gap: 10px; align-items: flex-start; margin: 0 0 6px; padding: 8px 10px;
-  border: 1px solid var(--hairline); border-radius: 2px; background: #fff; cursor: pointer;
-  font-size: 12.5px; color: var(--ink); letter-spacing: 0;
+  border: 1px solid var(--hairline); border-radius: 10px; background: #fff; cursor: pointer;
+  font-size: 13px; color: var(--ink); letter-spacing: 0;
 }
-.sec-row.on { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; }
+.sec-row.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .sec-row input { width: auto; margin-top: 3px; }
 .sec-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .sec-title { font-weight: 500; }
@@ -477,10 +529,10 @@ select.detail-pick { border-color: var(--brass); }
 .sec-limit { font-size: 10.5px; color: var(--ink-soft); font-style: italic; }
 .sec-flags { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .sec-tag {
-  font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 8px; white-space: nowrap;
+  font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 99px; white-space: nowrap;
   background: var(--paper-dark); color: var(--ink-soft);
 }
-.sec-tag.ref { background: #FBF0E4; color: #7A5A12; }
-.sec-tag.bad { background: var(--danger); color: #fff; }
+.sec-tag.ref { background: var(--warn-tint); color: var(--warn-ink); }
+.sec-tag.bad { background: var(--brass); color: #fff; }
 .sec-search { margin-top: 6px; }
 .sec-modal .sec-ok { width: auto; margin-top: 0; }
