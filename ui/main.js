@@ -7,7 +7,7 @@
  */
 
 /** 版本標記：畫面右下角會顯示，用來確認瀏覽器跑的是不是最新檔案 */
-export const BUILD = 'v15';
+export const BUILD = 'v16';
 
 import { evaluate } from '../engine/index.js';
 import { store } from './store.js';
