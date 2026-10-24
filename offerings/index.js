@@ -10,8 +10,8 @@
  *      offerings/<學期>/<系所>.js（例：offerings/115-2/PME.js）
  *   3. 在下面多一行 import，並加進 OFFERINGS
  *
- * 目前還沒有任何畫面使用這些資料。接上 UI 時，記得把 'offerings' 加進
- * tools/bump-build.mjs 的 MODULE_DIRS，否則新檔案不會進 importmap。
+ * ui/store.js 用這份清單來選班、檢查換學期後選的班還在不在（查法見 engine/schedule.js）。
+ * 新增檔案後記得跑 npm run build，新檔案才會進 index.html 的 importmap。
  */
 
 // 新增學期 × 系所時，在這裡多一行 import

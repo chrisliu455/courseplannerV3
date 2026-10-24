@@ -26,6 +26,7 @@ python3 -m http.server 8080   # 然後開 http://localhost:8080
 
 ```bash
 node --test tests/engine.test.mjs   # 引擎單元測試，不需要任何套件
+node --test tests/schedule.test.mjs # 學期對照、選班、衝堂判定，不需要任何套件
 node tests/smoke.mjs                # 全 UI 冒煙測試，需先 npm install jsdom
 node tests/feedback.mjs             # 回報問題送出的內容，需先 npm install jsdom
 node tests/version-mismatch.mjs     # 版號與快取破壞，需先 npm install jsdom
@@ -45,6 +46,7 @@ engine/                 判定引擎（純函式，可在 Node 執行）
   subject.js              科目判定
   credit.js               學分判定
   ruleset.js              索引、標籤編輯套用、規則集健檢
+  schedule.js             學期對照、選班、衝堂判定
 
 rulesets/               身分模組（純資料，沒有程式邏輯）
   major.dongji-114.js     主修：動機系 114 學年（預設，資料待核對）
@@ -60,7 +62,7 @@ ui/                     介面層（不做任何計算）
   feedback-config.js      回報問題要送到哪個 Google 表單（只有設定值）
   views/                  setup / pool / grid / report / tags / help / feedback
 
-offerings/              開課資料（純資料，目前還沒有畫面使用）
+offerings/              開課資料（純資料，選班與衝堂判定用）
   index.js                註冊表
   114-2/PME.js            114 下・動機系
   114-2/QF.js             114 下・計財系（只收輔系認列科目）
@@ -98,8 +100,8 @@ const report = evaluate(plan, ruleset);
   customIdentities: [],               // 自訂身分：{ id, type, label, credits }
   options:     { track: 'control' },  // 修業選項（專業學程四擇一）
   courses: [
-    { id: 'c1', name: '微積分一', credit: 3, tag: 'tag.dept', semester: 'y1s1' }
-  ],
+    { id: 'c1', name: '微積分一', credit: 3, tag: 'tag.dept', semester: 'y1s1', section: null }
+  ],                                  // section：選的班（開課資料的科號），null＝還沒選
   tagEdits: { tags: {}, moves: {}, custom: [] }   // 使用者對標籤的編輯
 }
 ```
@@ -402,6 +404,19 @@ dataNote: '課程資料尚未與系辦公告核對',
 4. 在 `offerings/index.js` 加一行 import，並加進 `OFFERINGS`
 
 產生出來的檔案不要手改，資料有誤就重新查詢、重新產生。
+
+### 選班與衝堂判定（engine/schedule.js）
+
+規劃裡的課只有課名，要知道上課時間得先「選班」：在 `course.section` 記下開課資料的科號。
+
+- **學期對照**：規劃學期由主修的入學年推算學年度，例 114 入學的大二上（`y2s1`）＝ `115-1`
+- **沒有當學期資料時**：每個系所各自用年份最接近的**同一學期**當參考（上學期只拿上學期的資料），
+  找到的班會標 `reference: true`，畫面上應註明「參考 115 上」。正式課表公布後時段可能不同
+- **候選班**：`sectionCandidates()` 依課名（全形／半形、空白不計）或關鍵字找；佔位課（`YZ` 開頭）不列入
+- **換學期**：新學期找得到同一科號就保留選班，找不到就清掉讓使用者重選；拖回待排課程時保留。換主修時也會重新檢查
+- **衝堂**：`findConflicts()` 比對同一學期各課的節次，回傳兩兩衝堂的組合與重疊的節次
+
+新增開課資料檔後要跑 `npm run build`，新檔案才會進 `index.html` 的 importmap。
 
 ### 只收錄部分課程（EXTRACT_ONLY）
 

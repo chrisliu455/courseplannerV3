@@ -18,7 +18,8 @@
  */
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
-import { mergeModules, customModule } from '../engine/index.js';
+import { OFFERINGS } from '../offerings/index.js';
+import { mergeModules, customModule, termOf, findSection } from '../engine/index.js';
 
 const STORAGE_KEY = 'credit-planner/plan/v2';
 const LEGACY_PLAN_KEYS = ['credit-planner/plan/v1'];
@@ -91,7 +92,8 @@ function migrate(data) {
     options: { ...(data.options || {}) },
     identityIds: [...(data.identityIds || [])],
     customIdentities: [...(data.customIdentities || [])],
-    courses: (data.courses || []).map((c) => ({ ...c, credit: Number(c.credit) || 0 })),
+    // 舊版規劃檔沒有 section（選的班），讀進來就是還沒選
+    courses: (data.courses || []).map((c) => ({ ...c, credit: Number(c.credit) || 0, section: c.section || null })),
     // 舊版規劃檔沒有這個欄位，讀進來就是全部未鎖定
     lockedSemesters: [...(data.lockedSemesters || [])],
     tagEdits: { ...base.tagEdits, ...(data.tagEdits || {}) },
@@ -128,6 +130,23 @@ function commit() {
 /** 這個學期是否已鎖定。semester 為 null（＝待排清單）時一律視為未鎖定 */
 function isLocked(semester) {
   return Boolean(semester) && plan.lockedSemesters.includes(semester);
+}
+
+/* ── 選班 ────────────────────────────────── */
+/** 規劃學期（y2s1）對到哪個學年度學期（'115-1'），由主修的入學年推算 */
+function termKeyOf(semester) {
+  return termOf(semester, getModule(plan.majorId)?.admissionYear)?.key || null;
+}
+
+/** 這門課選的班，在它目前的學期還找得到嗎（找得到就回傳那一班） */
+function resolveSection(course) {
+  if (!course.section || !course.semester) return null;
+  return findSection(OFFERINGS, termKeyOf(course.semester), course.section);
+}
+
+/** 換學期或換主修後，選的班在新學期不存在的就清掉，讓使用者重選 */
+function dropUnavailableSection(course) {
+  if (course.section && course.semester && !resolveSection(course)) course.section = null;
 }
 
 /** 目前生效的身分模組（主修排第一） */
@@ -179,6 +198,8 @@ export const store = {
     if (id === plan.majorId) return;
     plan.majorId = id;
     plan.options = {};
+    // 入學年不同，同一個「大二上」就對到不同學年度，選過的班可能不存在了
+    plan.courses.forEach(dropUnavailableSection);
     commit();
   },
   addIdentity(id) {
@@ -228,6 +249,7 @@ export const store = {
       tag: tag || null,
       semester,
       note,
+      section: null,
     };
     plan.courses.push(course);
     commit();
@@ -241,6 +263,7 @@ export const store = {
       tag: c.tag || null,
       semester: c.semester || null,
       note: c.note || '',
+      section: c.section || null,
     }));
     plan.courses.push(...added);
     commit();
@@ -264,6 +287,23 @@ export const store = {
     // 最後一道防線：搬出去或搬進來，只要有一邊鎖住就不動
     if (isLocked(c.semester) || isLocked(semester)) return false;
     c.semester = semester;
+    // 拖回待排課程時保留選班（還沒決定學期，沒得比）；換到別的學期才檢查
+    dropUnavailableSection(c);
+    commit();
+    return true;
+  },
+
+  /* 選班：section 是開課資料裡的科號，null＝還沒選 */
+  /** 規劃學期對到的學年度學期，例 'y2s1' → '115-1'；沒有入學年時回傳 null */
+  termKeyOf,
+  /** 這門課目前選的班（含時段、教室）；沒選或在這學期找不到時回傳 null */
+  sectionOf: resolveSection,
+  /** 選班。只能選目前學期找得到的科號；傳 null 取消選班 */
+  setSection(id, no) {
+    const c = plan.courses.find((x) => x.id === id);
+    if (!c || isLocked(c.semester)) return false;
+    if (no && !findSection(OFFERINGS, termKeyOf(c.semester), no)) return false;
+    c.section = no || null;
     commit();
     return true;
   },

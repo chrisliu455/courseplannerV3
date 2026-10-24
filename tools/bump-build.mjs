@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const MODULE_DIRS = ['ui', 'engine', 'rulesets'];
+const MODULE_DIRS = ['ui', 'engine', 'rulesets', 'offerings'];
 const ENTRY = 'ui/main.js';
 const START = '<!-- cache-bust:start -->';
 const END = '<!-- cache-bust:end -->';
