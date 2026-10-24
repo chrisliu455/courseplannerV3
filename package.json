@@ -9,6 +9,6 @@
     "check": "node tests/check-rulesets.mjs",
     "build": "node tools/bump-build.mjs",
     "release": "node tools/bump-build.mjs --bump",
-    "dev": "python3 -m http.server 8080"
+    "dev": "python -m http.server 8080"
   }
 }
