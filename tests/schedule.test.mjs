@@ -12,6 +12,7 @@ import {
   sortSlots,
   cleanSlots,
   customSection,
+  termHint,
 } from '../engine/index.js';
 import { OFFERINGS } from '../offerings/index.js';
 
@@ -241,4 +242,18 @@ test('自訂時段包成班：週課表與衝堂判定照常可用', () => {
   assert.equal(customSection(['X1']), null);
   const r = findConflicts([{ id: 'a', slots: slotsOf(sec) }, { id: 'b', slots: ['M4'] }]);
   assert.deepEqual(r.ids.sort(), ['a', 'b']);
+});
+
+/* ── 排到沒開課的學期 ─────────────────────── */
+test('學期提醒：只在另一種學期出現過才提醒，不比年份', () => {
+  assert.deepEqual(termHint(FAKE, '微積分Ａ二', '116-1'), { term: 2, terms: ['115-2'] });
+  assert.equal(termHint(FAKE, '微積分Ａ二', '116-2'), null);
+  assert.deepEqual(termHint(FAKE, '微積分A一', '115-2'), { term: 1, terms: ['115-1'] }); // 全形半形不計
+  assert.equal(termHint(FAKE, '微積分Ａ一', '113-1'), null);
+});
+
+test('學期提醒：開課資料裡找不到、只有佔位課或學期不明時不提醒', () => {
+  assert.equal(termHint(FAKE, '自己新增的課', '115-2'), null);
+  assert.equal(termHint(FAKE, '微積分Ａ一(去別系選)', '115-2'), null);
+  assert.equal(termHint(FAKE, '微積分Ａ二', null), null);
 });

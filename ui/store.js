@@ -19,7 +19,7 @@
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
 import { OFFERINGS } from '../offerings/index.js';
-import { mergeModules, customModule, termOf, findSection, sectionCandidates, cleanSlots, customSection } from '../engine/index.js';
+import { mergeModules, customModule, termOf, findSection, sectionCandidates, cleanSlots, customSection, termHint } from '../engine/index.js';
 
 const STORAGE_KEY = 'credit-planner/plan/v2';
 const LEGACY_PLAN_KEYS = ['credit-planner/plan/v1'];
@@ -335,6 +335,14 @@ export const store = {
   termKeyOf,
   /** 這門課目前選的班（含時段、教室）；沒選或在這學期找不到時回傳 null */
   sectionOf: resolveSection,
+  /**
+   * 這門課是不是排到了開課資料裡沒開過的學期（例：只在上學期出現過，卻排在下學期）。
+   * 回傳 { term, terms } 或 null。已選班、有自訂時段、還在待排課程裡的課不提醒。
+   */
+  termHintOf(course) {
+    if (!course || !course.semester || course.section || course.customSlots) return null;
+    return termHint(OFFERINGS, course.name, termKeyOf(course.semester));
+  },
   /** 選班。只能選目前學期找得到的科號；傳 null 取消選班 */
   setSection(id, no) {
     const c = plan.courses.find((x) => x.id === id);

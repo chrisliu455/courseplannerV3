@@ -119,3 +119,20 @@ test('自訂時段跟著匯出、匯入', () => {
   store.importPlan(json);
   assert.deepEqual(store.plan.courses[0].customSlots, ['T3', 'T4']);
 });
+
+/* ── 排到沒開課的學期 ─────────────────────── */
+test('學期提醒：只在下學期開的課排到上學期就提醒，排回下學期或設了自訂時段就不提醒', () => {
+  const c = add('工程數學二'); // 開課資料裡只有 114-2
+  assert.equal(store.termHintOf(c), null); // 待排課程：還沒有學期
+  store.assign(c.id, 'y2s1'); // 115-1
+  assert.deepEqual(store.termHintOf(find(c.id)), { term: 2, terms: ['114-2'] });
+  store.setCustomSlots(c.id, ['M1']);
+  assert.equal(store.termHintOf(find(c.id)), null);
+  store.assign(c.id, 'y2s2'); // 115-2：沒有當學期資料，但下學期有開過
+  assert.equal(store.termHintOf(find(c.id)), null);
+});
+
+test('學期提醒：開課資料裡找不到的課不提醒', () => {
+  const c = add('自己找的課', 'y2s1');
+  assert.equal(store.termHintOf(c), null);
+});

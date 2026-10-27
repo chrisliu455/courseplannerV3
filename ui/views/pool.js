@@ -20,6 +20,22 @@ let keyword = '';
 /** 備註字數上限。卡片在窄格子裡也要放得下，所以刻意壓短。 */
 const NOTE_MAX = 40;
 
+/** 學期提醒的文字，例「開課資料中只見於上學期（115-1）」 */
+function termHintText(hint) {
+  return `開課資料中只見於${hint.term === 1 ? '上' : '下'}學期（${hint.terms.join('、')}）`;
+}
+
+/**
+ * 課排進學期之後呼叫：排到開課資料裡沒開過的學期（上／下學期）就跳出提示。
+ * moved 是 store.assign 的回傳值，沒有真的搬動時不提示。
+ */
+export function warnTermAfterAssign(moved, id) {
+  if (!moved) return;
+  const course = store.plan.courses.find((c) => c.id === id);
+  const hint = store.termHintOf(course);
+  if (hint) toast(`注意：${course.name} ${termHintText(hint)}，這學期可能沒開`);
+}
+
 export function getSelectedId() {
   return selectedId;
 }
@@ -115,6 +131,7 @@ export function chipHTML(course, tags, context = 'pool', locked = false) {
     ? `「${tag.categoryLabel}」在目前身分下未啟用`
     : '';
   const note = (course.note || '').trim();
+  const hint = store.termHintOf(course);
 
   return `
   <div class="chip${selectedId === course.id ? ' selected' : ''}${locked ? ' locked' : ''}"
@@ -125,6 +142,7 @@ export function chipHTML(course, tags, context = 'pool', locked = false) {
         <div class="name">${esc(course.name)}</div>
         ${note ? `<div class="note-line" title="${esc(note)}">${esc(note)}</div>` : ''}
       </div>
+      ${hint ? `<div class="term-hint">${esc(termHintText(hint))}</div>` : ''}
       <div class="tag-line">
         <select class="tag-pick" data-id="${course.id}" title="${locked ? '學期已鎖定，無法更改' : '更改標籤'}"
                 ${locked ? 'disabled' : ''}>${tagOptions(tags, course.tag)}</select>

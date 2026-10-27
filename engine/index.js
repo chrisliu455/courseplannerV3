@@ -64,4 +64,4 @@ export { normalizeName, isCounted, isActive } from './ruleset.js';
 export { optionCombos, sumCategories, sumBuckets } from './ruleset.js';
 export { mergeModules, customModule, typeLabel } from './merge.js';
 export { DAYS, PERIODS, termOf, sourcesFor, findSection, sectionCandidates, searchOfferings } from './schedule.js';
-export { slotsOf, findConflicts, sortSlots, cleanSlots, customSection } from './schedule.js';
+export { slotsOf, findConflicts, sortSlots, cleanSlots, customSection, termHint } from './schedule.js';

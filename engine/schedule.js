@@ -225,3 +225,26 @@ export function customSection(slots) {
     reference: false,
   };
 }
+
+/**
+ * 這門課是不是排到了「開課資料裡沒開過」的學期（上學期／下學期）。
+ *   termHint(offerings, '微積分Ａ二', '116-1') → { term: 2, terms: ['115-2'] }   只在下學期出現過
+ *   termHint(offerings, '微積分Ａ二', '116-2') → null                            同一種學期有開
+ *   termHint(offerings, '自己新增的課', '116-1') → null                          開課資料裡找不到，無從判斷
+ * 只比上學期或下學期、不比年份；課名比對同選班（全形／半形、空白、大小寫不計），佔位課不算。
+ * 回傳的 term 是「有出現過的那一種學期」，terms 是出現過的學年度學期。
+ */
+export function termHint(offerings, name, termKey) {
+  const want = parseTerm(termKey);
+  const key = nameKey(name);
+  if (!want || !key) return null;
+
+  const seen = new Set();
+  for (const o of offerings || []) {
+    if (o.courses.some((c) => !c.placeholder && nameKey(c.name) === key)) seen.add(o.semester);
+  }
+  if (!seen.size) return null;
+  const terms = [...seen].sort();
+  if (terms.some((t) => parseTerm(t)?.term === want.term)) return null;
+  return { term: parseTerm(terms[0]).term, terms };
+}

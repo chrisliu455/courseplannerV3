@@ -153,6 +153,16 @@ button:hover { filter: brightness(1.08); }
   color: color-mix(in srgb, var(--tag) 75%, #000);
 }
 .chip .warn-dot { color: var(--danger); font-size: 11px; font-weight: 700; }
+/* 學期提醒：排到開課資料裡沒開過的學期（上／下學期） */
+.chip .term-hint {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
+  font-size: 11px; font-weight: 600; line-height: 1.35; color: var(--warn-ink);
+}
+.chip .term-hint::before {
+  content: '!'; flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--brass); color: #fff; font-size: 10px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
 
 /* 新增課程的課名建議（ui/views/course-suggest.js）：浮在課名欄位下方 */
 #addCourseBox { position: relative; }
