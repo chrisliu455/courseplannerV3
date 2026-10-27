@@ -143,8 +143,8 @@ function categoryHTML(cat) {
   if (!cat.active) return '';
   const extra = cat.countsTowardTotal ? '' : '<span style="font-weight:400;opacity:.8">（不計入畢業總學分）</span>';
   return `
-    <div class="cat-block">
-      <div class="cat-head" style="background:${esc(cat.color)}">
+    <div class="cat-block" style="--tag:${esc(cat.color)}">
+      <div class="cat-head">
         <span>${cat.met ? '✓' : ''} ${esc(cat.label)} ${extra}</span>
         <span class="num">${num(cat.earned)} / ${num(cat.target)}</span>
       </div>

@@ -135,7 +135,7 @@ function blockHTML({ course, section, slots }, tags, locked) {
     .join('\n');
   return `<div class="tt-block${getSelectedId() === course.id ? ' selected' : ''}"
                draggable="${locked ? 'false' : 'true'}" data-id="${esc(course.id)}" data-pick="${esc(course.id)}"
-               style="border-left-color:${esc(color)}" title="${esc(title)}">${esc(course.name)}</div>`;
+               style="--tag:${esc(color)}" title="${esc(title)}">${esc(course.name)}</div>`;
 }
 
 function unplacedTray(unplaced, tags, locked, term, total) {

@@ -118,7 +118,7 @@ export function chipHTML(course, tags, context = 'pool', locked = false) {
   return `
   <div class="chip${selectedId === course.id ? ' selected' : ''}${locked ? ' locked' : ''}"
        draggable="${locked ? 'false' : 'true'}"
-       data-id="${course.id}" style="border-left-color:${esc(color)}">
+       data-id="${course.id}" style="--tag:${esc(color)}">
     <div class="body">
       <div class="name-line">
         <div class="name">${esc(course.name)}</div>
