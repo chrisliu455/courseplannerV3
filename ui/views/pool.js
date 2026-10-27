@@ -11,6 +11,7 @@
 import { store } from '../store.js';
 import { $, esc, num, toast, delegate } from '../dom.js';
 import { tagTable } from '../../engine/index.js';
+import { attachCourseSuggest } from './course-suggest.js';
 
 let bound = false;
 let selectedId = null;
@@ -257,6 +258,8 @@ function inLockedSemester(el) {
 /* ── 事件（委派在容器上，重畫不用重綁）────── */
 function bindEvents() {
   bound = true;
+
+  attachCourseSuggest($('#addCourseBox')); // 課名欄位打字時，從開課資料帶出建議
 
   delegate($('#addCourseBox'), 'click', '#addCourseBtn', addCourse);
   $('#addCourseBox').addEventListener('keydown', (e) => {

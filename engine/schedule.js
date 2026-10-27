@@ -114,6 +114,41 @@ export function sectionCandidates(offerings, termKey, { name, keyword } = {}) {
   return [...seen.values()].sort((a, b) => a.no.localeCompare(b.no));
 }
 
+/**
+ * 新增課程時的課名建議：在所有學期、所有系所的開課資料裡找課名或科號含有關鍵字的課。
+ *   searchOfferings(OFFERINGS, '熱力') →
+ *     [{ name: '熱力學', credit: 3, depts: ['動機系'], terms: ['114-2', '115-1'], sections: 4 }]
+ * 跟選班不同，這裡還不知道要排哪個學期，所以不分學期；同課名同學分只列一筆，
+ * 開在哪些系所、哪些學期、共幾個班一併列出。佔位課不列入。
+ * 課名以關鍵字開頭的排前面，其餘依課名排序；最多回傳 limit 筆。
+ */
+export function searchOfferings(offerings, keyword, { limit = 8 } = {}) {
+  const word = nameKey(keyword);
+  if (!word) return [];
+
+  const found = new Map(); // '課名|學分' → 結果
+  for (const o of offerings || []) {
+    for (const c of o.courses) {
+      if (c.placeholder) continue;
+      const key = nameKey(c.name);
+      if (!key.includes(word) && !nameKey(c.no).includes(word)) continue;
+      const id = `${key}|${c.credit}`;
+      if (!found.has(id)) {
+        found.set(id, { name: c.name, credit: c.credit, depts: [], terms: [], sections: new Set(), starts: key.startsWith(word) });
+      }
+      const hit = found.get(id);
+      if (!hit.depts.includes(o.deptName)) hit.depts.push(o.deptName);
+      if (!hit.terms.includes(o.semester)) hit.terms.push(o.semester);
+      hit.sections.add(`${o.semester}|${c.no}`);
+    }
+  }
+
+  return [...found.values()]
+    .sort((a, b) => b.starts - a.starts || a.name.localeCompare(b.name, 'zh-Hant'))
+    .slice(0, limit)
+    .map(({ starts, sections, terms, ...rest }) => ({ ...rest, terms: terms.sort(), sections: sections.size }));
+}
+
 /** 一個班佔用的所有節次，例 ['M3', 'M4', 'W1', 'W2'] */
 export function slotsOf(section) {
   return section ? section.meetings.flatMap((m) => m.slots) : [];
