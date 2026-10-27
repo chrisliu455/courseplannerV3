@@ -6,6 +6,7 @@ import {
   sourcesFor,
   findSection,
   sectionCandidates,
+  searchOfferings,
   slotsOf,
   findConflicts,
   sortSlots,
@@ -116,6 +117,39 @@ test('候選班：用關鍵字找課名或科號', () => {
   );
   assert.equal(sectionCandidates(FAKE, '115-1', { keyword: '微積分' }).length, 2);
   assert.deepEqual(sectionCandidates(FAKE, '115-1', {}), []);
+});
+
+/* ── 新增課程的課名建議 ─────────────────────── */
+const SEARCH = [
+  { ...offering('AAA', 114, 2, [course('AAA 300100', '熱力學', 'M1', ['M1'], { credit: 3 })]), deptName: '甲系' },
+  {
+    ...offering('AAA', 115, 1, [
+      course('AAA 300101', '熱力學', 'M1', ['M1'], { credit: 3 }),
+      course('AAA 300102', '熱力學', 'T1', ['T1'], { credit: 3 }),
+      course('AAA 300200', '工程熱力學', 'W1', ['W1'], { credit: 2 }),
+      course('YZ 300300', '熱力學(去別系選)', 'R1', ['R1'], { credit: 3, placeholder: true }),
+    ]),
+    deptName: '甲系',
+  },
+  { ...offering('BBB', 115, 1, [course('BBB 300100', '熱力學', 'F1', ['F1'], { credit: 3 })]), deptName: '乙系' },
+];
+
+test('課名建議：跨學期、跨系所，同課名同學分只列一筆，佔位課不列入', () => {
+  const [hit, ...rest] = searchOfferings(SEARCH, '熱力學');
+  assert.deepEqual(hit, { name: '熱力學', credit: 3, depts: ['甲系', '乙系'], terms: ['114-2', '115-1'], sections: 4 });
+  assert.deepEqual(rest.map((r) => r.name), ['工程熱力學']);
+});
+
+test('課名建議：課名開頭相符的排前面，可用科號找，空白與全形半形不計', () => {
+  assert.deepEqual(searchOfferings(SEARCH, '熱力').map((r) => r.name), ['熱力學', '工程熱力學']);
+  assert.deepEqual(searchOfferings(SEARCH, '300200').map((r) => r.name), ['工程熱力學']);
+  assert.equal(searchOfferings(SEARCH, ' 熱 力 ').length, 2);
+  assert.equal(searchOfferings(FAKE, '微積分a一').length, 1);
+});
+
+test('課名建議：空字串不回傳，最多回傳 limit 筆', () => {
+  assert.deepEqual(searchOfferings(SEARCH, '  '), []);
+  assert.equal(searchOfferings(SEARCH, '熱', { limit: 1 }).length, 1);
 });
 
 /* ── 衝堂 ─────────────────────────────────── */

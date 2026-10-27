@@ -26,7 +26,7 @@ python3 -m http.server 8080   # 然後開 http://localhost:8080
 
 ```bash
 node --test tests/engine.test.mjs   # 引擎單元測試，不需要任何套件
-node --test tests/schedule.test.mjs # 學期對照、選班、衝堂判定，不需要任何套件
+node --test tests/schedule.test.mjs # 學期對照、選班、衝堂判定、課名建議，不需要任何套件
 node --test tests/store-section.test.mjs  # store 的選班規則（自動選班、換學期），不需要任何套件
 node tests/smoke.mjs                # 全 UI 冒煙測試，需先 npm install jsdom
 node tests/feedback.mjs             # 回報問題送出的內容，需先 npm install jsdom
@@ -61,7 +61,7 @@ ui/                     介面層（不做任何計算）
   main.js                 串接 store、引擎、各 view
   store.js                狀態、localStorage、匯入匯出
   feedback-config.js      回報問題要送到哪個 Google 表單（只有設定值）
-  views/                  setup / pool / grid / week / section-picker / report / tags / help / feedback
+  views/                  setup / pool / course-suggest / grid / week / section-picker / report / tags / help / feedback
 
 offerings/              開課資料（純資料，選班與衝堂判定用）
   index.js                註冊表
@@ -421,6 +421,17 @@ dataNote: '課程資料尚未與系辦公告核對',
   只在「排進學期」那一刻做，手動取消選班後不會被選回來
 
 新增開課資料檔後要跑 `npm run build`，新檔案才會進 `index.html` 的 importmap。
+
+### 新增課程的課名建議（ui/views/course-suggest.js）
+
+在「新增課程」的課程名稱打字，下方會列出開課資料裡課名或科號含有這段字的課（最多 8 筆），
+每筆註明學分、開課系所、哪些學期有開、共幾個班。點一下或用 ↑↓ ＋ Enter 選定，會自動填好課名與學分，
+課程類別仍要自己選；Esc 或離開欄位會關閉清單。
+
+- 搜尋規則是 `searchOfferings()`（engine/schedule.js）：不分學期、不分系所，同課名同學分只列一筆，
+  全形／半形、空白、大小寫不計，佔位課不列入，課名開頭相符的排前面
+- 清單沒開時按 Enter 跟以前一樣直接加入；開課資料裡沒有的課照樣可以自己打
+- 加進待排清單時還沒有學期，不會選班；排進學期後由原本的自動選班接手
 
 ### 週課表模式（ui/views/week.js、section-picker.js）
 
