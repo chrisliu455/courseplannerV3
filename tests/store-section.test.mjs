@@ -68,3 +68,54 @@ test('不能選該學期沒有的科號；鎖住的學期不能改選班', () =>
   assert.equal(store.setSection(c.id, 'PME 200101'), false);
   assert.equal(find(c.id).section, null);
 });
+
+/* ── 自訂時段 ─────────────────────────────── */
+test('自訂時段：設了就有時段，整理成課表順序；清除後回到沒有時段', () => {
+  const c = add('自己找的課', 'y2s1');
+  assert.equal(store.sectionOf(c), null);
+  assert.equal(store.setCustomSlots(c.id, ['W2', 'M3', 'M3']), true);
+  assert.deepEqual(find(c.id).customSlots, ['M3', 'W2']);
+  assert.equal(store.sectionOf(find(c.id)).custom, true);
+  store.setCustomSlots(c.id, []);
+  assert.equal(find(c.id).customSlots, null);
+  assert.equal(store.sectionOf(find(c.id)), null);
+});
+
+test('自訂時段與選班互相取代', () => {
+  const c = add('工程數學一', 'y2s1');
+  store.setSection(c.id, 'PME 200101');
+  store.setCustomSlots(c.id, ['F1']);
+  assert.equal(find(c.id).section, null);
+  assert.deepEqual(find(c.id).customSlots, ['F1']);
+  store.setSection(c.id, 'PME 200101');
+  assert.equal(find(c.id).customSlots, null);
+  assert.equal(find(c.id).section, 'PME 200101');
+});
+
+test('換學期或拖回待排課程就清掉自訂時段', () => {
+  const c = add('自己找的課', 'y2s1');
+  store.setCustomSlots(c.id, ['M1']);
+  store.assign(c.id, 'y2s2');
+  assert.equal(find(c.id).customSlots, null);
+  store.setCustomSlots(c.id, ['M1']);
+  store.assign(c.id, null);
+  assert.equal(find(c.id).customSlots, null);
+});
+
+test('待排課程與鎖住的學期不能設自訂時段', () => {
+  const c = add('自己找的課');
+  assert.equal(store.setCustomSlots(c.id, ['M1']), false);
+  store.assign(c.id, 'y2s1');
+  store.toggleSemesterLock('y2s1');
+  assert.equal(store.setCustomSlots(c.id, ['M1']), false);
+  assert.equal(find(c.id).customSlots, null);
+});
+
+test('自訂時段跟著匯出、匯入', () => {
+  const c = add('自己找的課', 'y2s1');
+  store.setCustomSlots(c.id, ['T3', 'T4']);
+  const json = store.exportPlan();
+  store.reset();
+  store.importPlan(json);
+  assert.deepEqual(store.plan.courses[0].customSlots, ['T3', 'T4']);
+});

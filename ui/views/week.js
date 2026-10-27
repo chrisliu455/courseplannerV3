@@ -2,7 +2,7 @@
  * ui/views/week.js — 週課表模式：八個學期各一張「週一～週五 × 節次」的表
  *
  * 跟列表模式（grid.js）讀的是同一份 plan.courses，任一邊移動課程，另一邊重畫時就同步了。
- * 課要先「選班」才知道上課時間（store.sectionOf）；還沒選班、或選的班沒有固定時段的課，
+ * 課要先「選班」或設定「自訂時段」才知道上課時間（store.sectionOf）；還沒有時段、或選的班沒有固定時段的課，
  * 放在卡片下方的「未定時段」區。衝堂判定交給 engine/schedule.js，這裡只負責畫出來。
  *
  * 拖曳：
@@ -126,10 +126,10 @@ function blockHTML({ course, section, slots }, tags, locked) {
   const rooms = [...new Set(section.meetings.map((m) => m.room).filter(Boolean))].join('、');
   const title = [
     course.name,
-    `${section.no}　${(section.teachers || []).join('、')}`,
+    section.custom ? '自訂時段' : `${section.no}　${(section.teachers || []).join('、')}`,
     `${sortSlots(slots).join(' ')}${rooms ? '　' + rooms : ''}`,
     section.reference ? `時段參考 ${section.sourceTerm}` : '',
-    locked ? '' : '點一下可以換班',
+    locked ? '' : '點一下可以換班或改時段',
   ]
     .filter(Boolean)
     .join('\n');
@@ -147,15 +147,15 @@ function unplacedTray(unplaced, tags, locked, term, total) {
     .map(({ course, section }) => {
       let label;
       if (section) label = '沒有固定時段';
-      else if (!hasData) label = '沒有開課資料';
+      else if (!hasData) label = '沒有開課資料・自訂時段';
       else {
         const n = sectionCandidates(OFFERINGS, term, { name: course.name }).length;
-        label = n ? `選班 · ${n} 班` : '找不到同名課程，搜尋';
+        label = n ? `選班 · ${n} 班` : '找不到同名課程・自訂時段';
       }
-      const action =
-        locked || (!section && !hasData)
-          ? `<span class="wk-pick-note">${esc(label)}</span>`
-          : `<button class="wk-pick" data-pick="${esc(course.id)}" type="button">${esc(label)}</button>`;
+      // 沒有開課資料也能打開視窗：裡面可以自己點選上課節次
+      const action = locked
+        ? `<span class="wk-pick-note">${esc(label)}</span>`
+        : `<button class="wk-pick" data-pick="${esc(course.id)}" type="button">${esc(label)}</button>`;
       return `<div class="wk-unplaced">${chipHTML(course, tags, 'grid', locked)}${action}</div>`;
     })
     .join('');

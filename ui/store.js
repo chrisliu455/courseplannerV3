@@ -19,7 +19,7 @@
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
 import { OFFERINGS } from '../offerings/index.js';
-import { mergeModules, customModule, termOf, findSection, sectionCandidates } from '../engine/index.js';
+import { mergeModules, customModule, termOf, findSection, sectionCandidates, cleanSlots, customSection } from '../engine/index.js';
 
 const STORAGE_KEY = 'credit-planner/plan/v2';
 const LEGACY_PLAN_KEYS = ['credit-planner/plan/v1'];
@@ -92,8 +92,13 @@ function migrate(data) {
     options: { ...(data.options || {}) },
     identityIds: [...(data.identityIds || [])],
     customIdentities: [...(data.customIdentities || [])],
-    // 舊版規劃檔沒有 section（選的班），讀進來就是還沒選
-    courses: (data.courses || []).map((c) => ({ ...c, credit: Number(c.credit) || 0, section: c.section || null })),
+    // 舊版規劃檔沒有 section（選的班）與 customSlots（自訂時段），讀進來就是都還沒設
+    courses: (data.courses || []).map((c) => ({
+      ...c,
+      credit: Number(c.credit) || 0,
+      section: c.section || null,
+      customSlots: slotsOrNull(c.customSlots),
+    })),
     // 舊版規劃檔沒有這個欄位，讀進來就是全部未鎖定
     lockedSemesters: [...(data.lockedSemesters || [])],
     tagEdits: { ...base.tagEdits, ...(data.tagEdits || {}) },
@@ -138,8 +143,18 @@ function termKeyOf(semester) {
   return termOf(semester, getModule(plan.majorId)?.admissionYear)?.key || null;
 }
 
-/** 這門課選的班，在它目前的學期還找得到嗎（找得到就回傳那一班） */
+/** 整理自訂時段：沒有任何有效節次就存成 null */
+function slotsOrNull(slots) {
+  const clean = cleanSlots(slots);
+  return clean.length ? clean : null;
+}
+
+/**
+ * 這門課的上課時段來源：有自訂時段就用自訂時段（包成跟開課資料一樣形狀的班），
+ * 否則看選的班在它目前的學期還找不找得到（找得到就回傳那一班）
+ */
 function resolveSection(course) {
+  if (course.customSlots && course.semester) return customSection(course.customSlots);
   if (!course.section || !course.semester) return null;
   return findSection(OFFERINGS, termKeyOf(course.semester), course.section);
 }
@@ -266,6 +281,7 @@ export const store = {
       semester,
       note,
       section: null,
+      customSlots: null,
     };
     autoPickSection(course);
     plan.courses.push(course);
@@ -281,6 +297,7 @@ export const store = {
       semester: c.semester || null,
       note: c.note || '',
       section: c.section || null,
+      customSlots: null,
     }));
     added.forEach(settleSection);
     plan.courses.push(...added);
@@ -305,6 +322,8 @@ export const store = {
     // 最後一道防線：搬出去或搬進來，只要有一邊鎖住就不動
     if (isLocked(c.semester) || isLocked(semester)) return false;
     c.semester = semester;
+    // 自訂時段是為原本那個學期設的，換學期（含拖回待排課程）就清掉
+    c.customSlots = null;
     // 拖回待排課程時保留選班（還沒決定學期，沒得比）；換到別的學期才檢查、才自動選
     settleSection(c);
     commit();
@@ -322,6 +341,20 @@ export const store = {
     if (!c || isLocked(c.semester)) return false;
     if (no && !findSection(OFFERINGS, termKeyOf(c.semester), no)) return false;
     c.section = no || null;
+    if (no) c.customSlots = null; // 選了班就改用那一班的時段，自訂時段作廢
+    commit();
+    return true;
+  },
+  /**
+   * 自訂時段：開課資料裡沒有的課，自己設定上課節次，例 ['M3', 'M4']。
+   * 設了就取代選的班（兩者只能有一個）；傳空陣列或 null 清除。
+   * 課要已經排進學期、而且學期沒鎖住才能設。
+   */
+  setCustomSlots(id, slots) {
+    const c = plan.courses.find((x) => x.id === id);
+    if (!c || !c.semester || isLocked(c.semester)) return false;
+    c.customSlots = slotsOrNull(slots);
+    if (c.customSlots) c.section = null;
     commit();
     return true;
   },

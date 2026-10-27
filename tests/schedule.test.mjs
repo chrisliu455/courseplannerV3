@@ -10,6 +10,8 @@ import {
   slotsOf,
   findConflicts,
   sortSlots,
+  cleanSlots,
+  customSection,
 } from '../engine/index.js';
 import { OFFERINGS } from '../offerings/index.js';
 
@@ -222,4 +224,21 @@ test('真實資料：還沒公布的 116-1 用 115-1 當參考', () => {
   const s = findSection(OFFERINGS, '116-1', 'PME 343300'); // 機械設計
   assert.equal(s.sourceTerm, '115-1');
   assert.equal(s.reference, true);
+});
+
+/* ── 自訂時段 ─────────────────────────────── */
+test('自訂時段：只留認得的節次，去重複、照課表順序排', () => {
+  assert.deepEqual(cleanSlots(['W2', 'M3', 'M3', 'X9', 'M0', 42, 'Sa']), ['M3', 'W2', 'Sa']);
+  assert.deepEqual(cleanSlots(null), []);
+});
+
+test('自訂時段包成班：週課表與衝堂判定照常可用', () => {
+  const sec = customSection(['M4', 'M3']);
+  assert.equal(sec.custom, true);
+  assert.equal(sec.no, null);
+  assert.deepEqual(slotsOf(sec), ['M3', 'M4']);
+  assert.equal(customSection([]), null);
+  assert.equal(customSection(['X1']), null);
+  const r = findConflicts([{ id: 'a', slots: slotsOf(sec) }, { id: 'b', slots: ['M4'] }]);
+  assert.deepEqual(r.ids.sort(), ['a', 'b']);
 });

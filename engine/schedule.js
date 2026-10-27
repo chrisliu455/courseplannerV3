@@ -196,3 +196,32 @@ export function sortSlots(slots) {
   const rank = (s) => DAYS.indexOf(s[0]) * PERIODS.length + PERIODS.indexOf(s.slice(1));
   return [...slots].sort((a, b) => rank(a) - rank(b));
 }
+
+/**
+ * 自訂時段：開課資料裡沒有的課，使用者自己點選上課節次。
+ *   cleanSlots(['W2', 'M3', 'M3', 'X9']) → ['M3', 'W2']
+ * 只留認得的節次（星期 DAYS × 節次 PERIODS），去掉重複，照課表順序排。
+ */
+export function cleanSlots(slots) {
+  const valid = (s) => typeof s === 'string' && DAYS.includes(s[0]) && PERIODS.includes(s.slice(1));
+  return sortSlots([...new Set((slots || []).filter(valid))]);
+}
+
+/**
+ * 把自訂時段包成跟開課資料一樣形狀的「班」，週課表、衝堂判定就能照常使用。
+ *   customSection(['M3', 'M4']) → { no: null, custom: true, meetings: [{ slots: ['M3', 'M4'], room: '' }], … }
+ * 沒有任何有效節次時回傳 null（＝沒有自訂時段）。
+ */
+export function customSection(slots) {
+  const clean = cleanSlots(slots);
+  if (!clean.length) return null;
+  return {
+    no: null,
+    name: '',
+    custom: true,
+    time: clean.join(''),
+    meetings: [{ slots: clean, room: '' }],
+    teachers: [],
+    reference: false,
+  };
+}
