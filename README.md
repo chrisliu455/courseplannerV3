@@ -67,12 +67,15 @@ offerings/              開課資料（純資料，選班與衝堂判定用）
   index.js                註冊表
   114-2/PME.js            114 下・動機系
   114-2/QF.js             114 下・計財系（只收輔系認列科目）
+  114-2/GE.js             114 下・通識課程總錄
   115-1/PME.js            115 上・動機系
   115-1/QF.js             115 上・計財系（只收輔系認列科目）
+  115-1/GE.js             115 上・通識課程總錄
 
 tools/
   bump-build.mjs          產生版號與快取破壞用的 importmap
   extract-offerings.js    從學校開課表網頁抽出開課資料（在瀏覽器執行）
+  extract-ge-offerings.js 從通識課程總錄抽出通識課開課資料（在瀏覽器執行）
 ```
 
 **依賴方向是單向的**：`ui/ → engine/ → rulesets/`。引擎不知道 UI 存在。
@@ -405,6 +408,24 @@ dataNote: '課程資料尚未與系辦公告核對',
 4. 在 `offerings/index.js` 加一行 import，並加進 `OFFERINGS`
 
 產生出來的檔案不要手改，資料有誤就重新查詢、重新產生。
+
+### 新增一個學期的通識課（offerings/<學期>/GE.js）
+
+通識課不在系所課表裡，改從「通識課程總錄」抓，系所代碼當成 `GE`（通識）：
+
+1. 校務資訊系統 → 通識課程總錄，選好學期後查詢，停在結果頁（`JH62f002.php`）
+2. 在那個分頁執行 [`tools/extract-ge-offerings.js`](tools/extract-ge-offerings.js)，一樣只讀網頁、不送出請求
+3. 回傳值的 `source` 存成 `offerings/<學期>/GE.js`，再到 `offerings/index.js` 加進 `OFFERINGS`
+
+跟系所資料的差別：
+
+- 總錄沒有班級與必／選修，`classes`、`listings` 都是空的
+- 每門課多了 `geCategories`：`[{ area: '核心通識', group: '向度一：思維、文明與歷史', dimension: 1 }]`，
+  選修通識的 `area` 是「自然科學領域」等，`dimension` 為 `null`
+- 科號前面的學年學期（例 `11510GEC 110301` 的 `11510`）會拿掉，跟系所資料的科號寫法一致
+- 校際課程（陽明交大、國訓中心等）沒有上課時間，`meetings` 是空的
+
+目前收錄 114-2、115-1 兩個學期。上下學期都有資料，學期提醒才不會把通識課排到另一個學期時誤報。
 
 ### 選班與衝堂判定（engine/schedule.js）
 

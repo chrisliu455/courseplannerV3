@@ -158,3 +158,15 @@ test('擋修提醒：開課資料裡沒有擋修條件的課不提醒', () => {
   const own = add('自己找的課', 'y2s1');
   assert.equal(store.prereqHintOf(own), null);
 });
+
+/* ── 通識課（offerings/<學期>/GE.js）────────────── */
+test('通識課也能選班：115-1 只開一班的數理思維排進大二上就自動選', () => {
+  const c = add('數理思維', 'y2s1');
+  assert.equal(c.section, 'GEC 110500');
+  assert.deepEqual(store.sectionOf(c).meetings[0].slots, ['M5', 'M6']);
+});
+
+test('通識課上下學期都有資料：兩學期都開的課排到下學期不會誤報學期提醒', () => {
+  const c = add('統計思維與分析', 'y2s2'); // 114-2、115-1 都有開
+  assert.equal(store.termHintOf(c), null);
+});
