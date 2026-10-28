@@ -19,7 +19,7 @@
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
 import { OFFERINGS } from '../offerings/index.js';
-import { mergeModules, customModule, termOf, findSection, sectionCandidates, cleanSlots, customSection, termHint } from '../engine/index.js';
+import { mergeModules, customModule, termOf, findSection, sectionCandidates, cleanSlots, customSection, termHint, parsePrereq, checkPrereq, prereqTextFor } from '../engine/index.js';
 
 const STORAGE_KEY = 'credit-planner/plan/v2';
 const LEGACY_PLAN_KEYS = ['credit-planner/plan/v1'];
@@ -135,6 +135,12 @@ function commit() {
 /** 這個學期是否已鎖定。semester 為 null（＝待排清單）時一律視為未鎖定 */
 function isLocked(semester) {
   return Boolean(semester) && plan.lockedSemesters.includes(semester);
+}
+
+/** 規劃學期的先後順序：y1s1 → 3、y1s2 → 4、y2s1 → 5 …，數字越小越早 */
+function semesterOrder(semester) {
+  const m = /^y(\d)s([12])$/.exec(semester || '');
+  return m ? Number(m[1]) * 2 + Number(m[2]) : Infinity;
 }
 
 /* ── 選班 ────────────────────────────────── */
@@ -342,6 +348,24 @@ export const store = {
   termHintOf(course) {
     if (!course || !course.semester || course.section || course.customSlots) return null;
     return termHint(OFFERINGS, course.name, termKeyOf(course.semester));
+  },
+  /**
+   * 擋修提醒：開課資料裡這門課有擋修條件，而先修課沒有排在「更早的學期」。
+   * 回傳 { text, audience, unmet } 或 null（沒有擋修、條件都滿足、或還在待排課程裡）。
+   *   text  擋修原文；unmet 沒滿足的那幾組條件（形狀見 engine 的 checkPrereq）
+   * 成績無從得知，只看有沒有排。
+   */
+  prereqHintOf(course) {
+    if (!course || !course.semester) return null;
+    const text = prereqTextFor(OFFERINGS, { section: resolveSection(course), name: course.name });
+    const parsed = parsePrereq(text);
+    if (!parsed) return null;
+    const mine = semesterOrder(course.semester);
+    const earlier = plan.courses
+      .filter((c) => c.semester && semesterOrder(c.semester) < mine)
+      .map((c) => c.name);
+    const unmet = checkPrereq(parsed, earlier);
+    return unmet.length ? { text, audience: parsed.audience, unmet } : null;
   },
   /** 選班。只能選目前學期找得到的科號；傳 null 取消選班 */
   setSection(id, no) {

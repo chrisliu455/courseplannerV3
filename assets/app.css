@@ -153,16 +153,25 @@ button:hover { filter: brightness(1.08); }
   color: color-mix(in srgb, var(--tag) 75%, #000);
 }
 .chip .warn-dot { color: var(--danger); font-size: 11px; font-weight: 700; }
-/* 學期提醒：排到開課資料裡沒開過的學期（上／下學期） */
-.chip .term-hint {
-  display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
+/* 學期提醒（排到開課資料裡沒開過的上／下學期）與擋修提醒（先修課沒排在更早的學期），各佔一行 */
+.chip .term-hint, .chip .prereq-hint > summary {
+  display: flex; align-items: flex-start; gap: 4px; margin-top: 4px;
   font-size: 11px; font-weight: 600; line-height: 1.35; color: var(--warn-ink);
 }
-.chip .term-hint::before {
+.chip .term-hint::before, .chip .prereq-hint > summary::before {
   content: '!'; flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%;
   background: var(--brass); color: #fff; font-size: 10px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center;
 }
+/* 擋修提醒平常只有一行「有擋修 ▸」，點了才展開細節 */
+.chip .prereq-hint > summary { width: fit-content; cursor: pointer; list-style: none; }
+.chip .prereq-hint > summary::-webkit-details-marker { display: none; }
+.chip .prereq-hint > summary::after { content: '▸'; font-size: 10px; }
+.chip .prereq-hint[open] > summary::after { content: '▾'; }
+.chip .prereq-detail {
+  margin: 3px 0 0 18px; font-size: 11px; line-height: 1.5; color: var(--warn-ink); cursor: help;
+}
+.chip .prereq-note { display: block; font-weight: 400; color: var(--ink-soft); }
 
 /* 新增課程的課名建議（ui/views/course-suggest.js）：浮在課名欄位下方 */
 #addCourseBox { position: relative; }

@@ -25,15 +25,58 @@ function termHintText(hint) {
   return `開課資料中只見於${hint.term === 1 ? '上' : '下'}學期（${hint.terms.join('、')}）`;
 }
 
+/** 免修測試、AP 這類資格在規劃裡無從表示，列出來只會讓提醒變長，摘要裡略過（完整原文仍在滑鼠提示裡） */
+const NOT_A_COURSE = /免修測試|AP先修/;
+
+/** 擋修提醒的摘要，例「需先修 財務管理」「需先修 微積分一／微積分Ａ一 其中一門」 */
+function prereqHintText(hint) {
+  return hint.unmet
+    .map((g) => {
+      const not = g.items.filter((i) => i.kind === 'not').map((i) => i.name);
+      const need = g.items.filter((i) => i.kind !== 'not' && !NOT_A_COURSE.test(i.name)).map((i) => i.name);
+      const parts = [];
+      if (need.length) {
+        parts.push(
+          g.mode === 'any' && need.length > 1
+            ? `需先修 ${need.slice(0, 3).join('／')}${need.length > 3 ? ' 等' : ''} 其中一門`
+            : `需先修 ${need.join('、')}`
+        );
+      }
+      if (not.length) parts.push(`不能已修過 ${not.join('、')}`);
+      return parts.join('，');
+    })
+    .filter(Boolean)
+    .join('；');
+}
+
 /**
- * 課排進學期之後呼叫：排到開課資料裡沒開過的學期（上／下學期）就跳出提示。
+ * 課程卡上的擋修提醒：平常只顯示「有擋修」，點一下才展開細節（缺哪些先修課），
+ * 滑鼠停在細節上可以看到擋修原文。<details> 是瀏覽器內建的展開／收合元件，不用另外寫程式。
+ */
+function prereqHintHTML(hint) {
+  return `
+    <details class="prereq-hint">
+      <summary>有擋修</summary>
+      <div class="prereq-detail" title="${esc(hint.text)}">
+        ${esc(prereqHintText(hint))}<span class="prereq-note">只檢查先修課有沒有排在更早的學期，成績條件請自行確認</span>
+      </div>
+    </details>`;
+}
+
+/**
+ * 課排進學期之後呼叫：排到開課資料裡沒開過的學期（上／下學期）、或先修課還沒排在更早的學期，就跳出提示。
  * moved 是 store.assign 的回傳值，沒有真的搬動時不提示。
  */
-export function warnTermAfterAssign(moved, id) {
+export function warnAfterAssign(moved, id) {
   if (!moved) return;
   const course = store.plan.courses.find((c) => c.id === id);
-  const hint = store.termHintOf(course);
-  if (hint) toast(`注意：${course.name} ${termHintText(hint)}，這學期可能沒開`);
+  const term = store.termHintOf(course);
+  const prereq = store.prereqHintOf(course);
+  const notes = [
+    term ? `${termHintText(term)}，這學期可能沒開` : '',
+    prereq ? '有擋修，先修課還沒排在之前的學期' : '',
+  ].filter(Boolean);
+  if (notes.length) toast(`注意：${course.name} ${notes.join('；')}`);
 }
 
 export function getSelectedId() {
@@ -132,6 +175,7 @@ export function chipHTML(course, tags, context = 'pool', locked = false) {
     : '';
   const note = (course.note || '').trim();
   const hint = store.termHintOf(course);
+  const prereq = store.prereqHintOf(course);
 
   return `
   <div class="chip${selectedId === course.id ? ' selected' : ''}${locked ? ' locked' : ''}"
@@ -143,6 +187,7 @@ export function chipHTML(course, tags, context = 'pool', locked = false) {
         ${note ? `<div class="note-line" title="${esc(note)}">${esc(note)}</div>` : ''}
       </div>
       ${hint ? `<div class="term-hint">${esc(termHintText(hint))}</div>` : ''}
+      ${prereq ? prereqHintHTML(prereq) : ''}
       <div class="tag-line">
         <select class="tag-pick" data-id="${course.id}" title="${locked ? '學期已鎖定，無法更改' : '更改標籤'}"
                 ${locked ? 'disabled' : ''}>${tagOptions(tags, course.tag)}</select>
@@ -310,6 +355,7 @@ function bindEvents() {
       return openNoteEditor(noteHit.closest('.chip'));
     }
     if (e.target.closest('.note-edit')) return; // 點在輸入框裡：什麼都別做
+    if (e.target.closest('.prereq-hint')) return; // 點擋修提醒：只展開／收合細節，不選取卡片
 
     const back = e.target.closest('[data-unschedule]');
     if (back) {

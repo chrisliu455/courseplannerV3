@@ -8,7 +8,7 @@ import { store } from '../store.js';
 import { $, esc, num, toast } from '../dom.js';
 import { SEMESTERS } from '../../rulesets/index.js';
 import { tagTable } from '../../engine/index.js';
-import { chipHTML, getSelectedId, clearSelection, warnTermAfterAssign } from './pool.js';
+import { chipHTML, getSelectedId, clearSelection, warnAfterAssign } from './pool.js';
 
 let bound = false;
 
@@ -80,7 +80,7 @@ function bindEvents() {
     body.classList.remove('drag-over');
     if (store.isSemesterLocked(body.dataset.sem)) return toast('這個學期已鎖定，請先解鎖');
     const id = e.dataTransfer.getData('text/plain');
-    warnTermAfterAssign(store.assign(id, body.dataset.sem), id);
+    warnAfterAssign(store.assign(id, body.dataset.sem), id);
   });
 
   /* 點鎖頭 = 切換該學期的鎖定狀態 */
@@ -100,6 +100,6 @@ function bindEvents() {
     if (!body || !id) return;
     if (store.isSemesterLocked(body.dataset.sem)) return toast('這個學期已鎖定，請先解鎖');
     clearSelection();
-    warnTermAfterAssign(store.assign(id, body.dataset.sem), id);
+    warnAfterAssign(store.assign(id, body.dataset.sem), id);
   });
 }

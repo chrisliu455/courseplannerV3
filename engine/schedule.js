@@ -248,3 +248,90 @@ export function termHint(offerings, name, termKey) {
   if (terms.some((t) => parseTerm(t)?.term === want.term)) return null;
   return { term: parseTerm(terms[0]).term, terms };
 }
+
+/* ── 擋修 ─────────────────────────────────── */
+
+/**
+ * 把開課資料裡的擋修原文拆成條件。原文是校務系統固定格式，例：
+ *   擋修對象 : 大學部
+ *   先修科目 :
+ *   統計學一-成績需C-以上
+ *   統計學二-成績需C-以上
+ *   上述條件一定要有，則不擋修。
+ * 每遇到一行「上述條件…」就收成一組：「一定要有」＝這組全部都要，「任選一科」＝這組任一門即可，
+ * 各組之間是「而且」。課名那一行有三種寫法：
+ *   'X-成績需C-以上' → { name: 'X', grade: 'C-', kind: 'pass' }
+ *   '曾修X'          → { name: 'X', grade: null, kind: 'taken' }   修過就好
+ *   '未修過X'        → { name: 'X', grade: null, kind: 'not' }     修過反而會被擋
+ * 回傳 { audience: '大學部', groups: [{ mode: 'all' | 'any', items: [...] }] }；沒有條件時回傳 null。
+ */
+export function parsePrereq(text) {
+  if (!text) return null;
+  let audience = '';
+  let started = false;
+  let items = [];
+  const groups = [];
+  for (const raw of String(text).split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line.startsWith('擋修對象')) {
+      audience = line.split(':').slice(1).join(':').trim();
+    } else if (line.startsWith('先修科目')) {
+      started = true;
+    } else if (line.startsWith('上述條件')) {
+      if (items.length) groups.push({ mode: line.includes('任選') ? 'any' : 'all', items });
+      items = [];
+    } else if (started) {
+      items.push(prereqItem(line));
+    }
+  }
+  if (items.length) groups.push({ mode: 'all', items }); // 沒有結尾句：當成全部都要
+  return groups.length ? { audience, groups } : null;
+}
+
+function prereqItem(line) {
+  let m = /^未修過(.+)$/.exec(line);
+  if (m) return { name: m[1].trim(), grade: null, kind: 'not' };
+  m = /^曾修(.+)$/.exec(line);
+  if (m) return { name: m[1].trim(), grade: null, kind: 'taken' };
+  m = /^(.+?)-成績需(.+?)以上$/.exec(line);
+  if (m) return { name: m[1].trim(), grade: m[2].trim(), kind: 'pass' };
+  return { name: line, grade: null, kind: 'pass' };
+}
+
+/**
+ * 檢查擋修條件：earlierNames 是排在「更早學期」的課名（成績無從得知，只看有沒有排）。
+ *   checkPrereq(parsePrereq(原文), ['統計學一']) →
+ *     [{ mode: 'all', items: [{ name: '統計學二', … }] }]   沒滿足的組，all 只列缺的那幾門
+ * 全部滿足時回傳空陣列。「未修過X」的 X 排在更早學期＝不滿足。
+ */
+export function checkPrereq(parsed, earlierNames) {
+  if (!parsed) return [];
+  const have = new Set((earlierNames || []).map(nameKey));
+  const ok = (it) => (it.kind === 'not' ? !have.has(nameKey(it.name)) : have.has(nameKey(it.name)));
+  const unmet = [];
+  for (const g of parsed.groups) {
+    if (g.mode === 'any') {
+      if (!g.items.some(ok)) unmet.push(g);
+    } else {
+      const missing = g.items.filter((it) => !ok(it));
+      if (missing.length) unmet.push({ mode: 'all', items: missing });
+    }
+  }
+  return unmet;
+}
+
+/**
+ * 一門課的擋修原文：有選班就用那一班的；沒選班就在開課資料裡找同名課（不分學期），取第一個有寫的。
+ * 開課資料裡沒有這門課、或這門課沒有擋修時回傳 null。
+ */
+export function prereqTextFor(offerings, { section, name } = {}) {
+  if (section && !section.custom) return section.prereq || null;
+  const key = nameKey(name);
+  if (!key) return null;
+  for (const o of offerings || []) {
+    const hit = o.courses.find((c) => !c.placeholder && c.prereq && nameKey(c.name) === key);
+    if (hit) return hit.prereq;
+  }
+  return null;
+}

@@ -136,3 +136,25 @@ test('學期提醒：開課資料裡找不到的課不提醒', () => {
   const c = add('自己找的課', 'y2s1');
   assert.equal(store.termHintOf(c), null);
 });
+
+/* ── 擋修 ─────────────────────────────────── */
+test('擋修提醒：先修課沒排在更早的學期就提醒，同學期不算', () => {
+  const inv = add('投資學'); // 開課資料：擋修「財務管理-成績需C-以上」
+  assert.equal(store.prereqHintOf(inv), null); // 待排課程不檢查
+  store.assign(inv.id, 'y2s1');
+  const hint = store.prereqHintOf(find(inv.id));
+  assert.equal(hint.audience, '大學部');
+  assert.deepEqual(hint.unmet[0].items.map((i) => i.name), ['財務管理']);
+
+  const fin = add('財務管理', 'y2s1'); // 同一學期：還是不行
+  assert.notEqual(store.prereqHintOf(find(inv.id)), null);
+  store.assign(fin.id, 'y1s2'); // 排到更早的學期：通過
+  assert.equal(store.prereqHintOf(find(inv.id)), null);
+});
+
+test('擋修提醒：開課資料裡沒有擋修條件的課不提醒', () => {
+  const c = add('財務管理', 'y2s1');
+  assert.equal(store.prereqHintOf(c), null);
+  const own = add('自己找的課', 'y2s1');
+  assert.equal(store.prereqHintOf(own), null);
+});

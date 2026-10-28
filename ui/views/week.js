@@ -16,7 +16,7 @@ import { $, esc, num, toast } from '../dom.js';
 import { SEMESTERS } from '../../rulesets/index.js';
 import { OFFERINGS } from '../../offerings/index.js';
 import { tagTable, PERIODS, sourcesFor, slotsOf, sectionCandidates, findConflicts, sortSlots } from '../../engine/index.js';
-import { chipHTML, getSelectedId, clearSelection, warnTermAfterAssign } from './pool.js';
+import { chipHTML, getSelectedId, clearSelection, warnAfterAssign } from './pool.js';
 import { lockIcon } from './grid.js';
 import { openSectionPicker } from './section-picker.js';
 
@@ -183,7 +183,7 @@ function bindEvents(box) {
     if (!card || !id) return;
     if (store.isSemesterLocked(card.dataset.sem)) return toast('這個學期已鎖定，請先解鎖');
     clearSelection();
-    warnTermAfterAssign(store.assign(id, card.dataset.sem), id);
+    warnAfterAssign(store.assign(id, card.dataset.sem), id);
   });
 
   /* 格子裡的課：拖的是整門課，不管抓的是它的哪一節 */
@@ -214,6 +214,6 @@ function bindEvents(box) {
     card.classList.remove('drag-over');
     if (store.isSemesterLocked(card.dataset.sem)) return toast('這個學期已鎖定，請先解鎖');
     const id = e.dataTransfer.getData('text/plain');
-    warnTermAfterAssign(store.assign(id, card.dataset.sem), id);
+    warnAfterAssign(store.assign(id, card.dataset.sem), id);
   });
 }

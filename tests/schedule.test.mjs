@@ -13,6 +13,9 @@ import {
   cleanSlots,
   customSection,
   termHint,
+  parsePrereq,
+  checkPrereq,
+  prereqTextFor,
 } from '../engine/index.js';
 import { OFFERINGS } from '../offerings/index.js';
 
@@ -256,4 +259,49 @@ test('學期提醒：開課資料裡找不到、只有佔位課或學期不明�
   assert.equal(termHint(FAKE, '自己新增的課', '115-2'), null);
   assert.equal(termHint(FAKE, '微積分Ａ一(去別系選)', '115-2'), null);
   assert.equal(termHint(FAKE, '微積分Ａ二', null), null);
+});
+
+/* ── 擋修 ─────────────────────────────────── */
+const CALC2 = [
+  '擋修對象 : 全校',
+  '先修科目 :',
+  '微積分一-成績需D以上',
+  '微積分Ａ一-成績需D以上',
+  '曾修微積分Ａ一(基本科目免修測試)',
+  '上述條件任選一科，而且',
+  '未修過微積分二(數學系)',
+  '上述條件一定要有，則不擋修。',
+].join('\n');
+const STAT = '擋修對象 : 大學部\n先修科目 :\n統計學一-成績需C-以上\n統計學二-成績需C-以上\n上述條件一定要有，則不擋修。';
+
+test('擋修原文拆成條件：任選一科／一定要有、成績、曾修、未修過', () => {
+  const p = parsePrereq(CALC2);
+  assert.equal(p.audience, '全校');
+  assert.deepEqual(p.groups.map((g) => g.mode), ['any', 'all']);
+  assert.deepEqual(p.groups[0].items[0], { name: '微積分一', grade: 'D', kind: 'pass' });
+  assert.deepEqual(p.groups[0].items[2], { name: '微積分Ａ一(基本科目免修測試)', grade: null, kind: 'taken' });
+  assert.deepEqual(p.groups[1].items[0], { name: '微積分二(數學系)', grade: null, kind: 'not' });
+  assert.equal(parsePrereq(STAT).groups[0].items[1].grade, 'C-');
+  assert.equal(parsePrereq(null), null);
+  assert.equal(parsePrereq('擋修對象 : 全校\n先修科目 :'), null);
+});
+
+test('擋修檢查：一定要有＝全部都要，任選一科＝一門就夠，未修過的課排了反而不行', () => {
+  const stat = parsePrereq(STAT);
+  assert.deepEqual(checkPrereq(stat, ['統計學一'])[0].items.map((i) => i.name), ['統計學二']);
+  assert.deepEqual(checkPrereq(stat, ['統計學一', '統計學二']), []);
+
+  const calc = parsePrereq(CALC2);
+  assert.deepEqual(checkPrereq(calc, ['微積分A一']), []); // 全形半形不計
+  assert.equal(checkPrereq(calc, []).length, 1);
+  const bad = checkPrereq(calc, ['微積分一', '微積分二(數學系)']);
+  assert.deepEqual(bad.map((g) => g.items[0].kind), ['not']);
+});
+
+test('擋修原文來源：有選班用那一班的，沒選班找同名課，自訂時段不算班', () => {
+  const offs = [offering('AAA', 115, 1, [course('AAA 1', '投資學', 'M1', ['M1'], { prereq: STAT })])];
+  assert.equal(prereqTextFor(offs, { name: '投資學' }), STAT);
+  assert.equal(prereqTextFor(offs, { section: { prereq: null }, name: '投資學' }), null);
+  assert.equal(prereqTextFor(offs, { section: { custom: true }, name: '投資學' }), STAT);
+  assert.equal(prereqTextFor(offs, { name: '沒有這門' }), null);
 });
