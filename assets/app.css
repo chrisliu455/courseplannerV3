@@ -32,6 +32,10 @@
   --glass-blur: blur(24px) saturate(180%);
   --glass-edge: inset 0 1px 0 rgba(255, 255, 255, .9), inset 0 0 0 1px rgba(255, 255, 255, .35);
   --glass-shadow: 0 8px 32px rgba(31, 45, 90, .10), 0 1px 2px rgba(31, 45, 90, .06);
+  /* 放在玻璃上的分隔線與淺灰底：用半透明黑而不是固定的灰色，
+     底下透出什麼顏色都看得出來，不會跟半透明白底糊在一起 */
+  --glass-line: rgba(21, 24, 30, .07);
+  --glass-fill: rgba(21, 24, 30, .05);
 
   /* 系統字型，不從外部載入：中文在 Windows 是微軟正黑體、Mac 是蘋方 */
   --font-sans: system-ui, -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
@@ -241,13 +245,21 @@ input.search-box {
 /* 每張卡至少 236px 寬，放得下幾欄就排幾欄（寬螢幕 4 欄、手機 1 欄）。
    min(236px, 100%)：螢幕比 236px 還窄時就用滿寬，不會把頁面撐出橫向捲軸 */
 .grid4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(236px, 100%), 1fr)); gap: 14px; }
-.sem-card { background: var(--card); border: 1px solid var(--hairline); border-radius: 14px; display: flex; flex-direction: column; min-height: 220px; overflow: hidden; }
-.sem-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 10px 10px 10px 14px; border-bottom: 1px solid #EEF0F3; background: transparent; }
+/* 學期卡：玻璃。卡片只有 8 張，每張各自模糊背景不會拖慢畫面；
+   裡面的課程卡維持原本的淡色實底，不做玻璃（數量多、又常在拖曳） */
+.sem-card {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border); border-radius: 20px;
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  display: flex; flex-direction: column; min-height: 220px; overflow: hidden;
+}
+.sem-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 10px 10px 10px 14px; border-bottom: 1px solid var(--glass-line); background: transparent; }
 .sem-head h3 { font-size: 15px; }
-.sem-head .credit-badge { font-size: 12px; font-weight: 600; background: var(--paper); color: var(--ink); padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+.sem-head .credit-badge { font-size: 12px; font-weight: 600; background: var(--glass-fill); color: var(--ink); padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
 .sem-body { flex: 1; padding: 10px; }
-.sem-body.drag-over { background: var(--accent-tint); outline: 2px dashed var(--accent); outline-offset: -6px; }
-.drop-hint { font-size: 12px; color: #6B7280; text-align: center; padding: 14px 4px; border: 1.5px dashed #D3D8E0; border-radius: 10px; }
+.sem-body.drag-over { background: rgba(43, 80, 214, .08); outline: 2px dashed var(--accent); outline-offset: -6px; }
+.drop-hint { font-size: 12px; color: #6B7280; text-align: center; padding: 14px 4px; border: 1.5px dashed rgba(21, 24, 30, .16); border-radius: 12px; }
 
 /* ── 判定結果 ───────────────────────────── */
 /* 分頁標籤：跟「列表／週課表」同一種分段按鈕 */
@@ -475,18 +487,19 @@ select.detail-pick { border-color: var(--brass); }
   transition: color .15s, background-color .15s;
 }
 /* 滑鼠移上去變黑，提示「這顆可以按」 */
-.lock-btn:hover { filter: none; color: var(--ink); background: var(--paper); }
+.lock-btn:hover { filter: none; color: var(--ink); background: var(--glass-fill); }
 /* 已鎖定：深色實心按鈕，一眼看出這學期是鎖住的 */
 .lock-btn.on { background: var(--navy); color: #fff; }
 .lock-btn.on:hover { background: var(--ink); color: #fff; }
 
-.sem-card.locked { background: #F9FAFB; }
+/* 鎖住的學期：玻璃偏灰一點（毛玻璃起霧的感覺），跟可以拖的學期分得出來 */
+.sem-card.locked { background: rgba(236, 238, 242, .62); }
 .sem-card.locked .sem-body { background: transparent; }
 /* 鎖住的卡片：拿掉「可拖曳」的手勢，課程卡維持白底，看得清楚但明顯不能動 */
 .sem-card.locked .chip { cursor: default; }
 /* 鎖住時膠囊照樣上色，只拿掉下拉箭頭，表示不能改 */
 .sem-card.locked .chip select.tag-pick { appearance: none; -webkit-appearance: none; padding-right: 9px; opacity: 1; }
-.sem-card.locked .drop-hint { border-style: solid; border-color: #D3D8E0; }
+.sem-card.locked .drop-hint { border-style: solid; border-color: rgba(21, 24, 30, .12); }
 
 /* ── 側欄收起 ───────────────────────────── */
 /* 展開時：側欄照常佔左邊一欄，只是頂端多一顆「收起側欄」 */
@@ -560,8 +573,8 @@ select.detail-pick { border-color: var(--brass); }
 .week-grid { grid-template-columns: repeat(auto-fill, minmax(min(440px, 100%), 1fr)); }
 .wk-card { min-height: 0; }
 /* 衝堂用橘色（提醒），不用紅色：紅色留給刪除、錯誤 */
-.wk-card.clash { border-color: #F3C9A8; box-shadow: 0 0 0 1px #F3C9A8; }
-.wk-card.drag-over { background: var(--accent-tint); outline: 2px dashed var(--accent); outline-offset: -4px; }
+.wk-card.clash { border-color: #F3C9A8; box-shadow: 0 0 0 1px #F3C9A8, var(--glass-shadow); }
+.wk-card.drag-over { background: rgba(43, 80, 214, .08); outline: 2px dashed var(--accent); outline-offset: -4px; }
 .wk-term { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); margin-left: 4px; }
 .wk-clash-badge {
   font-size: 11px; font-weight: 700; color: #fff; background: var(--brass);
@@ -578,9 +591,10 @@ select.detail-pick { border-color: var(--brass); }
 .tt { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .tt th { font-size: 12px; font-weight: 600; color: var(--ink-soft); padding: 4px 0; }
 .tt th.tt-p { width: 22px; font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
-.tt td { border: 1px solid #EEF0F3; height: 24px; padding: 1px; vertical-align: top; background: #fff; }
+/* 格子是比卡片再白一點的半透明，看起來像玻璃上刻出來的格線 */
+.tt td { border: 1px solid var(--glass-line); height: 24px; padding: 1px; vertical-align: top; background: rgba(255, 255, 255, .5); }
 /* 中午 n、晚上 a–c：灰底，一眼分出白天和其他時段 */
-.tt tr.quiet td { background: #F6F7F9; }
+.tt tr.quiet td { background: var(--glass-fill); }
 .tt td.clash { background: var(--warn-tint); border: 1.5px dashed var(--brass); }
 /* 標籤色由 week.js 放進 --tag：方塊用淡色底＋加深的同色字，跟列表模式的課程卡同一套 */
 .tt-block {
@@ -599,7 +613,7 @@ select.detail-pick { border-color: var(--brass); }
 .tt-block.dragging { opacity: .4; }
 .tt-block.selected { box-shadow: 0 0 0 2px var(--accent) inset; }
 .sem-card.locked .tt-block { cursor: default; }
-.sem-card.locked .tt td { background: #F9FAFB; }
+.sem-card.locked .tt td { background: rgba(255, 255, 255, .25); }
 
 /* 未定時段：沿用一般課程卡，右邊加一顆「選班」 */
 .wk-tray { margin-top: 10px; }
