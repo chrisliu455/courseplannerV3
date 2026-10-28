@@ -1,4 +1,4 @@
-/* assets/app.css — 簡潔網格風格（舊的紙本帳冊風格在 git tag ui-ledger） */
+/* assets/app.css — 液態玻璃風格（舊的紙本帳冊風格在 git tag ui-ledger） */
 
 /*
  * 變數名稱沿用舊版（paper、maroon、brass…），只換了值：
@@ -24,6 +24,15 @@
   --danger: #B42318;
   --danger-tint: #FDECEA;
 
+  /* 液態玻璃：半透明白底 ＋ 背景模糊 ＋ 上緣一道白色反光。
+     --glass-bg 給大面積容器，--glass-bg-strong 給字多的卡片（字要讀得清楚，透明度低一點） */
+  --glass-bg: rgba(255, 255, 255, .55);
+  --glass-bg-strong: rgba(255, 255, 255, .72);
+  --glass-border: rgba(255, 255, 255, .7);
+  --glass-blur: blur(24px) saturate(180%);
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, .9), inset 0 0 0 1px rgba(255, 255, 255, .35);
+  --glass-shadow: 0 8px 32px rgba(31, 45, 90, .10), 0 1px 2px rgba(31, 45, 90, .06);
+
   /* 系統字型，不從外部載入：中文在 Windows 是微軟正黑體、Mac 是蘋方 */
   --font-sans: system-ui, -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
@@ -38,6 +47,18 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+/* 玻璃後面要有東西可以透：在最底層鋪四團柔和的彩色光暈。
+   用 position: fixed 的獨立一層，而不是改 body 的 background：
+   1. 捲動時光暈固定不動（iOS Safari 不支援 background-attachment: fixed）
+   2. body 的底色維持 --paper，index.html 的自我診斷靠這個顏色判斷 app.css 有沒有載入 */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(40vmax 40vmax at 6% 10%, rgba(43, 80, 214, .20), transparent 70%),
+    radial-gradient(36vmax 36vmax at 94% 6%, rgba(139, 92, 246, .16), transparent 70%),
+    radial-gradient(44vmax 44vmax at 88% 94%, rgba(20, 184, 166, .15), transparent 70%),
+    radial-gradient(38vmax 38vmax at 12% 96%, rgba(251, 146, 60, .13), transparent 70%);
 }
 ::selection { background: var(--accent); color: #fff; }
 h1, h2, h3 { font-family: var(--font-sans); font-weight: 700; margin: 0; }
