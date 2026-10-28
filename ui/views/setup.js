@@ -119,7 +119,7 @@ function renderImportPanel() {
       <span class="footnote" style="margin:0">勾選後加入，標籤自動帶入</span>
       <button class="link-btn" id="importToggleAll" type="button">全選 / 取消</button>
     </div>
-    <div id="importList" style="max-height:300px;overflow-y:auto;border:1px solid var(--hairline);background:#fff;border-radius:2px">
+    <div id="importList" style="max-height:300px;overflow-y:auto;border:1px solid var(--glass-line);background:rgba(255,255,255,.6);border-radius:12px">
       ${rows || '<p class="empty-note" style="padding:10px">這些身分沒有列出規定科目。</p>'}
     </div>
     <button class="btn-primary" id="importAddBtn" type="button">＋ 加入勾選的課程</button>
