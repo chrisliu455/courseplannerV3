@@ -37,6 +37,11 @@
   --font-sans: system-ui, -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
 }
+/* 瀏覽器不支援背景模糊時，半透明白底會讓後面的東西直接透出來干擾閱讀：
+   改成幾乎不透明的白底，看起來就是一般的白色卡片 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --glass-bg: rgba(255, 255, 255, .94); --glass-bg-strong: rgba(255, 255, 255, .97); }
+}
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
@@ -68,8 +73,14 @@ h1, h2, h3 { font-family: var(--font-sans); font-weight: 700; margin: 0; }
 /* ── Header ─────────────────────────────── */
 .topbar {
   display: flex; align-items: center; gap: 14px 32px;
-  padding: 14px 28px; background: var(--card);
-  border-bottom: 1px solid var(--hairline); flex: 0 0 auto; flex-wrap: wrap;
+  padding: 14px 28px; flex: 0 0 auto; flex-wrap: wrap;
+  /* 玻璃：-webkit- 開頭那行給舊版 Safari，新版瀏覽器看沒有前綴的那行 */
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: var(--glass-edge), 0 4px 24px rgba(31, 45, 90, .06);
+  /* 陰影要蓋在底下的側欄與課表上面，才看得出頂部列是浮起來的 */
+  position: relative; z-index: 1;
 }
 .brand { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
 .brand-mark { flex: 0 0 auto; fill: var(--accent); }
@@ -82,11 +93,12 @@ h1, h2, h3 { font-family: var(--font-sans); font-weight: 700; margin: 0; }
 .ledger .lab { font-size: 12px; color: var(--ink-soft); }
 .ledger .num { font-size: 20px; font-weight: 700; line-height: 1.2; }
 .ledger .of { font-size: 13px; color: var(--ink-soft); }
-.ledger .pct { font-size: 11px; color: var(--ink-soft); background: var(--paper); border-radius: 99px; padding: 1px 7px; }
+/* 底色用半透明黑而不是 --paper：放在玻璃上時，淺灰色會跟半透明白底混在一起看不出膠囊 */
+.ledger .pct { font-size: 11px; color: var(--ink-soft); background: rgba(21, 24, 30, .06); border-radius: 99px; padding: 1px 7px; }
 .ledger .remain { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--brass); }
 .progress-bar { display: block; width: 100%; height: 8px; border-radius: 99px; overflow: hidden; }
 .progress-bar line { stroke-width: 8; }
-.progress-bar .track { stroke: #E9ECF1; }
+.progress-bar .track { stroke: rgba(21, 24, 30, .08); }
 #sealRing { stroke: var(--accent); transition: stroke-dashoffset .3s ease; }
 
 /* flex-shrink 要是 1：窄螢幕時這一區才會縮，按鈕自動換行，而不是把整頁撐寬 */
@@ -94,12 +106,18 @@ h1, h2, h3 { font-family: var(--font-sans); font-weight: 700; margin: 0; }
 
 /* ── Layout ─────────────────────────────── */
 .layout { display: grid; grid-template-columns: 340px 1fr; flex: 1 1 auto; min-height: 0; }
-.sidebar { padding: 20px; border-right: 1px solid var(--hairline); background: var(--paper); height: 100%; overflow-y: auto; }
+/* 側欄是一整片比頂部列更透的玻璃，裡面的白色卡片才分得出層次 */
+.sidebar {
+  padding: 20px; height: 100%; overflow-y: auto;
+  background: rgba(255, 255, 255, .28);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--glass-border);
+}
 .main { padding: 22px 28px; height: 100%; overflow-y: auto; }
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; flex: none; }
   .sidebar, .main { height: auto; overflow: visible; border-right: none; }
-  .sidebar { border-bottom: 1px solid var(--hairline); }
+  .sidebar { border-bottom: 1px solid var(--glass-border); }
   .topbar { padding: 12px 16px; }
   .sidebar { padding: 16px; }
   .main { padding: 18px 16px; }
@@ -114,7 +132,12 @@ h1, h2, h3 { font-family: var(--font-sans); font-weight: 700; margin: 0; }
 .section-label .spacer { flex: 1; }
 .main > .section-label { font-size: 18px; flex-wrap: wrap; }
 
-.card-box { background: var(--card); border: 1px solid var(--hairline); border-radius: 14px; padding: 16px; margin-bottom: 18px; }
+/* 側欄裡的卡片：側欄本身已經模糊過背景，這裡只疊半透明白底和上緣反光，不再模糊一次（省效能） */
+.card-box {
+  background: var(--glass-bg-strong); border: 1px solid var(--glass-border); border-radius: 18px;
+  box-shadow: var(--glass-edge), 0 2px 12px rgba(31, 45, 90, .05);
+  padding: 16px; margin-bottom: 18px;
+}
 label { display: block; font-size: 12px; color: var(--ink-soft); letter-spacing: .02em; margin: 12px 0 5px; }
 label:first-child { margin-top: 0; }
 input[type=text], input[type=number], select, textarea {
@@ -477,6 +500,8 @@ select.detail-pick { border-color: var(--brass); }
   position: absolute; top: 0; bottom: 0; left: 0; z-index: 50;
   width: 340px; max-width: 85vw;
   transform: translateX(-100%);
+  /* 浮在課表上面時，底下是課程卡而不是光暈，玻璃要濃一點字才讀得清楚 */
+  background: var(--glass-bg-strong);
 }
 /* 只在畫面載入完成後才加動畫，免得一打開頁面就看到側欄滑出去 */
 .layout.sidebar-ready .sidebar { transition: transform .18s ease, box-shadow .18s ease; }
@@ -486,7 +511,8 @@ select.detail-pick { border-color: var(--brass); }
   display: flex; justify-content: center; align-items: flex-start;
   position: absolute; top: 0; bottom: 0; left: 0; z-index: 40; width: 12px;
   padding-top: 24px; font-size: 11px; color: var(--ink-soft);
-  background: var(--card); border-right: 1px solid var(--hairline);
+  background: var(--glass-bg); border-right: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
 }
 .layout.sidebar-collapsed .sidebar-edge:hover { background: var(--accent-tint); color: var(--ink); }
 .layout.sidebar-collapsed .main { padding-left: 34px; }
