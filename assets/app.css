@@ -597,12 +597,6 @@ select.detail-pick { border-color: var(--brass); }
 .slot-pick-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 8px; }
 .slot-pick-head h4 { margin: 0; font-size: 14px; font-weight: 700; }
 .slot-pick-note { font-size: 12px; color: var(--ink-soft); }
-/* 全站的 label 是欄位小標題（獨立一行），這裡是勾選框旁的文字，要改回同一行 */
-.slot-weekend {
-  display: inline-flex; align-items: center; gap: 5px; margin: 0 0 0 auto;
-  font-size: 12px; color: var(--ink-soft); letter-spacing: 0; cursor: pointer;
-}
-.slot-weekend input { width: auto; margin: 0; accent-color: var(--accent); }
 .slot-grid { width: 100%; border-collapse: separate; border-spacing: 3px; table-layout: fixed; }
 .slot-grid th { font-size: 12px; font-weight: 600; color: var(--ink-soft); padding: 0; }
 .slot-grid th.mono { width: 22px; font-size: 11px; font-weight: 500; }

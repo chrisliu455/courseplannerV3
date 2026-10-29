@@ -21,6 +21,7 @@ export default {
   label: '動機工程學系',
   short: '動機系',
   admissionYear: 113,
+  fallbackTag: 'tag.major-elective', // 換主修或取消輔系時，標籤在這個主修裡找不到的課改掛這個
   totalCredits: 129,
   source: '113 學年度動機系必修科目、學分數暨畢業總學分表',
 

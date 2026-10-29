@@ -170,3 +170,61 @@ test('通識課上下學期都有資料：兩學期都開的課排到下學期�
   const c = add('統計思維與分析', 'y2s2'); // 114-2、115-1 都有開
   assert.equal(store.termHintOf(c), null);
 });
+
+test('匯入時選班與自訂時段都有：留自訂時段，選班清掉', () => {
+  store.importPlan({
+    courses: [{ id: 'c1', name: '統計學一', credit: 3, semester: 'y2s1', section: 'QF 214401', customSlots: ['M3'] }],
+  });
+  assert.equal(find('c1').section, null);
+  assert.deepEqual(find('c1').customSlots, ['M3']);
+});
+
+/* ── 換主修、取消身分時的標籤 ─────────────── */
+const tagged = (name, tag, semester = 'y2s1') =>
+  store.addCourses([{ name, credit: 3, tag, semester }])[0];
+
+test('取消輔系計財：掛輔系標籤的課改成動機系的主修選修，鎖住的學期也改', () => {
+  store.addIdentity('minor.qf');
+  const a = tagged('統計學一', 'tag.minor-qf');
+  const b = tagged('投資學', 'tag.minor-qf', 'y3s1');
+  store.toggleSemesterLock('y3s1');
+  store.removeIdentity('minor.qf');
+  assert.equal(find(a.id).tag, 'tag.major-elective');
+  assert.equal(find(b.id).tag, 'tag.major-elective');
+  assert.equal(find(b.id).semester, 'y3s1'); // 位置不動
+});
+
+test('換主修：新主修沒有的標籤改成其餘選修，共有的標籤、沒設標籤的課不動', () => {
+  const elec = tagged('某選修', 'tag.major-elective');
+  const zh = tagged('大學中文', 'tag.chinese');
+  const none = tagged('沒標籤的課', null);
+  store.setMajor('major.ee-114');
+  assert.equal(find(elec.id).tag, 'tag.elective');
+  assert.equal(find(zh.id).tag, 'tag.chinese');
+  assert.equal(find(none.id).tag, null);
+});
+
+test('換主修：自己加的標籤還在，掛著它的課不動', () => {
+  store.addCustomTag({ id: 'tag.custom-x', label: '自訂', color: '#000', bucket: null });
+  const c = tagged('某課', 'tag.custom-x');
+  store.setMajor('major.ee-114');
+  assert.equal(find(c.id).tag, 'tag.custom-x');
+});
+
+test('取消身分前的提示用得到備用標籤的名稱', () => {
+  assert.equal(store.fallbackTag.label, '主修選修');
+});
+
+test('換主修：手動取消的選班不會被自動選回來', () => {
+  const c = add('統計學一', 'y2s1');
+  assert.equal(c.section, 'QF 214401');
+  store.setSection(c.id, null);
+  store.setMajor('major.dongji-113'); // 大二上從 115-1 變成 114-1
+  assert.equal(find(c.id).section, null);
+});
+
+test('換主修：選好的班在新學期還找得到就保留', () => {
+  const c = add('統計學一', 'y2s1');
+  store.setMajor('major.dongji-113'); // 114-1 沒有資料，參考 115-1，同一班還在
+  assert.equal(find(c.id).section, 'QF 214401');
+});

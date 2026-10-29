@@ -14,11 +14,13 @@ import { store } from '../store.js';
 import { $, esc, toast } from '../dom.js';
 import { SEMESTERS } from '../../rulesets/index.js';
 import { OFFERINGS } from '../../offerings/index.js';
-import { sectionCandidates, findSection, slotsOf, sortSlots, DAYS, PERIODS } from '../../engine/index.js';
+import { sectionCandidates, findSection, slotsOf, sortSlots, PERIODS } from '../../engine/index.js';
 
 /** chosen 是這個值＝選的是「自訂時段」，不是開課資料裡的某一班 */
 const CUSTOM = '__custom';
-const DAY_LABEL = { M: '一', T: '二', W: '三', R: '四', F: '五', S: '六', U: '日' };
+/** 自訂時段只能點週一～週五 */
+const WEEKDAYS = ['M', 'T', 'W', 'R', 'F'];
+const DAY_LABEL = { M: '一', T: '二', W: '三', R: '四', F: '五' };
 /** 中午與晚上的節次：灰底，跟週課表一致 */
 const QUIET = new Set(['n', 'a', 'b', 'c']);
 
@@ -31,9 +33,8 @@ export function openSectionPicker(courseId) {
   const locked = store.isSemesterLocked(course.semester);
   let keyword = '';
   let chosen = course.customSlots ? CUSTOM : course.section;
-  /** 自訂時段的草稿：在格子上點選時先改這份，按「確定」才寫回 store */
-  let draft = [...(course.customSlots || [])];
-  let showWeekend = draft.some((x) => x[0] === 'S' || x[0] === 'U');
+  /** 自訂時段的草稿：在格子上點選時先改這份，按「確定」才寫回 store。舊資料裡的週末節次不帶進來 */
+  let draft = (course.customSlots || []).filter((x) => WEEKDAYS.includes(x[0]));
 
   /* 同學期其他已有時段的課：拿來預先比對衝堂 */
   const others = store.plan.courses
@@ -57,7 +58,6 @@ export function openSectionPicker(courseId) {
         <div class="slot-pick-head">
           <h4>自訂時段</h4>
           <span class="slot-pick-note">開課資料裡沒有這門課時，直接點格子選上課節次</span>
-          <label class="slot-weekend"><input type="checkbox" id="slotWeekend" ${showWeekend ? 'checked' : ''}>顯示週六、日</label>
         </div>
         <div id="slotGrid"></div>
         <p class="slot-summary" id="slotSummary"></p>
@@ -126,11 +126,10 @@ export function openSectionPicker(courseId) {
 
   /** 自訂時段的格子：星期 × 節次，選到的格子上色，跟同學期其他課重疊的格子標出衝堂 */
   function renderGrid() {
-    const days = showWeekend ? DAYS : DAYS.slice(0, 5);
     const on = chosen === CUSTOM;
-    const head = `<tr><th></th>${days.map((d) => `<th>${DAY_LABEL[d]}</th>`).join('')}</tr>`;
+    const head = `<tr><th></th>${WEEKDAYS.map((d) => `<th>${DAY_LABEL[d]}</th>`).join('')}</tr>`;
     const rows = PERIODS.map((p) => {
-      const cells = days
+      const cells = WEEKDAYS
         .map((d) => {
           const slot = d + p;
           const picked = on && draft.includes(slot);
@@ -192,10 +191,6 @@ export function openSectionPicker(courseId) {
     }
     const slot = cell.dataset.slot;
     draft = draft.includes(slot) ? draft.filter((x) => x !== slot) : [...draft, slot];
-    renderGrid();
-  });
-  $('#slotWeekend', overlay).addEventListener('change', (e) => {
-    showWeekend = e.target.checked;
     renderGrid();
   });
 
