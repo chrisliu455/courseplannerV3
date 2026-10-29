@@ -134,6 +134,9 @@ export function validateRuleset(ruleset) {
     if (seenTag.has(t.id)) push('error', `標籤 id 重複：${t.id}`);
     seenTag.add(t.id);
   });
+  if (ruleset.fallbackTag && !seenTag.has(ruleset.fallbackTag)) {
+    push('error', `fallbackTag 指向不存在的標籤：${ruleset.fallbackTag}`);
+  }
 
   const combos = optionCombos(ruleset);
 

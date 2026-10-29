@@ -173,7 +173,9 @@ function bindEvents() {
         return toast('已加入身分，畢業學分要求已更新');
       }
       const n = store.identityCourseCount(id);
-      if (n && !confirm(`有 ${n} 門課掛著這個身分的標籤，取消後它們會變成未設標籤（課程本身不會被刪除）。確定取消？`)) {
+      const fb = store.fallbackTag;
+      const after = fb ? `改成「${fb.label}」` : '變成未設標籤';
+      if (n && !confirm(`有 ${n} 門課掛著這個身分的標籤，取消後它們會${after}（課程本身不會被刪除）。確定取消？`)) {
         t.checked = true;
         return;
       }

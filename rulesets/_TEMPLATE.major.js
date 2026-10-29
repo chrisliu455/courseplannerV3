@@ -29,6 +29,7 @@ export default {
   label: '範本學系', // 顯示在清單上的名稱
   short: '範本系',
   admissionYear: 114, // 選填，會顯示成「114 學年入學」
+  fallbackTag: 'tag.free-elective', // 選填：換主修或取消輔系時，標籤在這個主修裡找不到的課改掛這個
   totalCredits: 128, // 畢業總學分（= 下面各大類 minCredits 的加總）
   source: '114 學年度必修科目、學分數暨畢業總學分表',
 

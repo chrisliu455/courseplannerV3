@@ -30,6 +30,7 @@ export default {
   label: '電機工程學系',
   short: '電機系',
   admissionYear: 114,
+  fallbackTag: 'tag.elective', // 換主修或取消輔系時，標籤在這個主修裡找不到的課改掛這個
   totalCredits: 128,
   source: '114 學年度電機系必修科目、學分數暨畢業總學分表',
   dataNote: '「數理必選」各課程的學分數為推估值，匯入後請依實際開課調整',

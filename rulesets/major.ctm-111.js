@@ -65,6 +65,7 @@ export default {
   label: '科技管理學院學士班',
   short: '科管院學士班',
   admissionYear: 111,
+  fallbackTag: 'tag.elective', // 換主修或取消輔系時，標籤在這個主修裡找不到的課改掛這個
   totalCredits: 128,
   source: '科管院學士班畢業總學分表（111 學年度起入學適用）＋ 115 學年度第二專長學程課程表',
   dataNote:

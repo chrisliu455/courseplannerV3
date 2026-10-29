@@ -28,6 +28,7 @@ export default {
   label: '動機工程學系',
   short: '動機系',
   admissionYear: 114,
+  fallbackTag: 'tag.major-elective', // 換主修或取消輔系時，標籤在這個主修裡找不到的課改掛這個
   totalCredits: 129,
   dataStatus: 'unverified',
   dataNote: '課程資料沿用 113 學年課表，尚未與 114 學年公告核對',

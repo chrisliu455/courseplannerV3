@@ -19,7 +19,7 @@
 
 import { DEFAULT_MAJOR_ID, getModule } from '../rulesets/index.js';
 import { OFFERINGS } from '../offerings/index.js';
-import { mergeModules, customModule, termOf, findSection, sectionCandidates, cleanSlots, customSection, termHint, parsePrereq, checkPrereq, prereqTextFor } from '../engine/index.js';
+import { mergeModules, customModule, applyTagEdits, termOf, findSection, sectionCandidates, cleanSlots, customSection, termHint, parsePrereq, checkPrereq, prereqTextFor } from '../engine/index.js';
 
 const STORAGE_KEY = 'credit-planner/plan/v2';
 const LEGACY_PLAN_KEYS = ['credit-planner/plan/v1'];
@@ -92,13 +92,17 @@ function migrate(data) {
     options: { ...(data.options || {}) },
     identityIds: [...(data.identityIds || [])],
     customIdentities: [...(data.customIdentities || [])],
-    // 舊版規劃檔沒有 section（選的班）與 customSlots（自訂時段），讀進來就是都還沒設
-    courses: (data.courses || []).map((c) => ({
-      ...c,
-      credit: Number(c.credit) || 0,
-      section: c.section || null,
-      customSlots: slotsOrNull(c.customSlots),
-    })),
+    // 舊版規劃檔沒有 section（選的班）與 customSlots（自訂時段），讀進來就是都還沒設。
+    // 兩者只能擇一：檔案裡兩個都有時留自訂時段（畫面本來就以它為準），選班清掉
+    courses: (data.courses || []).map((c) => {
+      const customSlots = slotsOrNull(c.customSlots);
+      return {
+        ...c,
+        credit: Number(c.credit) || 0,
+        section: customSlots ? null : c.section || null,
+        customSlots,
+      };
+    }),
     // 舊版規劃檔沒有這個欄位，讀進來就是全部未鎖定
     lockedSemesters: [...(data.lockedSemesters || [])],
     tagEdits: { ...base.tagEdits, ...(data.tagEdits || {}) },
@@ -197,6 +201,29 @@ function activeModules() {
   return mods;
 }
 
+/** 目前身分組合（含使用者改過名、自己加的標籤）底下所有的標籤 */
+function currentTags() {
+  return applyTagEdits(mergeModules(activeModules()), plan.tagEdits).tags;
+}
+
+/** 主修指定的備用標籤（例：動機系的「主修選修」）；主修沒指定時回傳 null */
+function fallbackTag() {
+  const id = getModule(plan.majorId)?.fallbackTag;
+  return currentTags().find((t) => t.id === id) || null;
+}
+
+/**
+ * 換主修或取消身分後，標籤在目前身分組合裡已經不存在的課，改掛主修的備用標籤
+ * （主修沒指定就變成未設標籤）。沒設標籤、或標籤還在的課不動；鎖住的學期一樣改（鎖只管位置）。
+ */
+function retagOrphans() {
+  const known = new Set(currentTags().map((t) => t.id));
+  const fallback = fallbackTag()?.id || null;
+  plan.courses.forEach((c) => {
+    if (c.tag && !known.has(c.tag)) c.tag = fallback;
+  });
+}
+
 /* ── 對外 ────────────────────────────────── */
 export const store = {
   get plan() {
@@ -208,6 +235,10 @@ export const store = {
   },
   get modules() {
     return activeModules();
+  },
+  /** 換主修或取消身分時，標籤對不上的課會改掛的標籤 { id, label, … }；沒有時為 null */
+  get fallbackTag() {
+    return fallbackTag();
   },
   /* 自動保存開關 */
   get persistEnabled() {
@@ -235,8 +266,14 @@ export const store = {
     if (id === plan.majorId) return;
     plan.majorId = id;
     plan.options = {};
-    // 入學年不同，同一個「大二上」就對到不同學年度，選過的班可能不存在了
-    plan.courses.forEach(settleSection);
+    // 入學年不同，同一個「大二上」就對到不同學年度，選過的班可能不存在了。
+    // 只有「原本有選班、因此被清掉」的課才自動補選；原本沒選班（含使用者手動取消）的維持不選
+    plan.courses.forEach((c) => {
+      const had = c.section;
+      dropUnavailableSection(c);
+      if (had && !c.section) autoPickSection(c);
+    });
+    retagOrphans();
     commit();
   },
   addIdentity(id) {
@@ -251,20 +288,16 @@ export const store = {
     commit();
     return id;
   },
-  /** 移除身分：回傳會被連帶清掉標籤的課程數，讓 UI 先問過使用者 */
+  /** 移除身分：回傳會被連帶改標籤的課程數，讓 UI 先問過使用者 */
   identityCourseCount(id) {
     const mod = getModule(id) || customModule(plan.customIdentities.find((c) => c.id === id) || {});
     const tagIds = (mod.tags || []).map((t) => t.id);
     return plan.courses.filter((c) => tagIds.includes(c.tag)).length;
   },
   removeIdentity(id) {
-    const mod = getModule(id) || customModule(plan.customIdentities.find((c) => c.id === id) || {});
-    const tagIds = (mod.tags || []).map((t) => t.id);
-    plan.courses.forEach((c) => {
-      if (tagIds.includes(c.tag)) c.tag = null;
-    });
     plan.identityIds = plan.identityIds.filter((x) => x !== id);
     plan.customIdentities = plan.customIdentities.filter((x) => x.id !== id);
+    retagOrphans(); // 掛著這個身分標籤的課改掛主修的備用標籤
     commit();
   },
 
