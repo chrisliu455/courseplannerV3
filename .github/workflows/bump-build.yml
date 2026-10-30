@@ -1,0 +1,48 @@
+# 合併進 main 之後自動升版號（等同手動跑 npm run release），再 commit + push 回 main。
+#
+# 什麼時候執行：main 收到 push（包含在 GitHub 網頁上合併 PR），而且改到網站檔案。
+#   只改 README、測試、工具時不執行：網站內容沒變，不需要讓瀏覽器重新下載。
+#   外部 fork 發的 PR 不會觸發，只有程式碼真的進了 main 才會跑。
+# 權限：只有 contents: write（push 升版號的 commit），不讀任何 secrets。
+# 不會無限循環：用 GITHUB_TOKEN push 的 commit 依 GitHub 規則不會再觸發 workflow。
+name: Bump build after merge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'ui/**'
+      - 'engine/**'
+      - 'rulesets/**'
+      - 'offerings/**'
+      - 'assets/**'
+
+permissions:
+  contents: write
+
+# 同時合併兩個 PR 時排隊執行，不會互相搶著 push
+concurrency:
+  group: bump-build
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    # 最新的 commit 已經是手動升版號，就不再升一次
+    if: ${{ !startsWith(github.event.head_commit.message, 'Bump build') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main # 排隊等過的話，要拿 main 最新的狀態來升
+
+      - name: 版號 +1，同步 index.html 與 importmap
+        run: node tools/bump-build.mjs --bump
+
+      - name: Commit 並 push 回 main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          v=$(grep -o "BUILD = 'v[0-9]*'" ui/main.js | grep -o 'v[0-9]*')
+          git commit -am "Bump build to $v"
+          git push
